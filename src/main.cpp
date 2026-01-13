@@ -170,8 +170,8 @@ namespace cgl { // Conways's Game of Life
 
     }
 
-    template <typename key, typename link, typename Fn>
-    void logical_cell(const myecs::sparse_set<key, link>& cell_index_to_entity, Fn&& task) {
+    template <typename Fn>
+    void logical_cell(Fn&& task) {
       using namespace component::type;
 
       const WidthGrid logical_width{ cgl::display_metadata::Logical_GridWidth };
@@ -188,7 +188,7 @@ namespace cgl { // Conways's Game of Life
       }
     }
 
-    template <typename key, typename link, typename Fn>
+    template <typename Fn>
     void ranged_physical_cell(const component::type::PosGrid_x physical_x,
                               const component::type::PosGrid_y physical_y,
                               const component::type::WidthGrid range_width,
@@ -222,15 +222,19 @@ namespace cgl { // Conways's Game of Life
       
       PosGrid_x start_x{};
       PosGrid_y start_y{};
+      const PosGrid_x max_x{ cgl::display_metadata::Physical_GridWidth.get() - 1 };
+      const PosGrid_y max_y{ cgl::display_metadata::Physical_GridHeight.get() - 1 };
+
       WidthGrid range_width{};
       HeightGrid range_height{};
 
+      const std::int32_t& padd = cgl::grid_metadata::padding;
 
       // top left to top right (inclusive)
       start_x.set(0);
       start_y.set(0);
       range_width.set(cgl::display_metadata::Physical_GridWidth.get());
-      range_height.set(1);
+      range_height.set(padd);
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
         task_lambda_ARGS_x_y_index
@@ -239,30 +243,30 @@ namespace cgl { // Conways's Game of Life
     
       // bottom left to bottom right (inclusive)
       start_x.set(0);
-      start_y.set(cgl::display_metadata::Physical_GridHeight.get() - 1); // bottom
+      start_y.set(cgl::display_metadata::Physical_GridHeight.get() - padd); // bottom
       range_width.set(cgl::display_metadata::Physical_GridWidth.get());
-      range_height.set(1);
+      range_height.set(padd);
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
         task_lambda_ARGS_x_y_index
       );
 
 
-      // top left to bottom left (EXCLUSIVE)
+      // top left to bottom left (EXCLUSIVE) or LOGICAL
       start_x.set(0);
-      start_y.set(1); 
-      range_width.set(1);
-      range_height.set(cgl::display_metadata::Physical_GridHeight.get() - 1);
+      start_y.set(padd); 
+      range_width.set(padd);
+      range_height.set(cgl::display_metadata::Logical_GridHeight.get()); // as padding is on both top and bottom
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
         task_lambda_ARGS_x_y_index
       );
 
-      // top right to bottom right (EXCLUSIVE)
-      start_x.set(cgl::display_metadata::Physical_GridWidth - 1);
-      start_y.set(1);
-      range_width.set(1);
-      range_height.set(cgl::display_metadata::Physical_GridHeight.get() - 1);
+      // top right to bottom right (EXCLUSIVE) or LOGICAL
+      start_x.set(cgl::display_metadata::Physical_GridWidth.get() - padd);
+      start_y.set(padd);
+      range_width.set(padd);
+      range_height.set(cgl::display_metadata::Logical_GridHeight.get()); // as padding is on both top and bottom
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
         task_lambda_ARGS_x_y_index
@@ -308,158 +312,97 @@ namespace cgl { // Conways's Game of Life
   
   template <typename key, typename link>
   void init_entities(const myecs::sparse_set<key, link>& cell_index_to_entity, const component::type::WidthPix cell_width, const component::type::HeightPix cell_height, std::uint32_t initial_seed = 0) {
-    using namespace component::type;
-    std::size_t total_entities = cell_index_to_entity.dense.size(); // size of total data
-    std::size_t index = 0;
+    using namespace cgl::grid_iterator;
 
-    for (std::size_t i = 0; i < total_entities; i++) {
-      myecs::add_comp_to<comp::position>(cell_index_to_entity.at(i));
-      myecs::add_comp_to<comp::position_grid>(cell_index_to_entity.at(i));
-      myecs::add_comp_to<comp::rectangle>(cell_index_to_entity.at(i));
-      myecs::add_comp_to<comp::alive>(cell_index_to_entity.at(i));
-
-      myecs::add_comp_to<comp::neighbour>(cell_index_to_entity.at(i));
-
-      
-    }
-
-    // unnessary component removal from the padded always dead entities
-
-     // top left to top right (inclusive)
-    for (component::type::PosGrid_x x{0}; x.get() < cgl::display_metadata::Physical_GridWidth.get(); x.set(x.get() + 1)) { 
-      
-      const PosGrid_y y{ 0 }; // extreme top
-      index = cgl::grid_helper_p::grid_xy_to_array_index(x, y);
-
-      myecs::remove_comp_from<comp::position>(cell_index_to_entity.at(index));
-      myecs::remove_comp_from<comp::rectangle>(cell_index_to_entity.at(index));
-      
+    // ECS registry/storage initialization
+    for_each::logical_cell(
+      [&](auto x, auto y, std::size_t index) {
+        myecs::add_comp_to<comp::position>(cell_index_to_entity.at(index));
+        myecs::add_comp_to<comp::position_grid>(cell_index_to_entity.at(index));
+        myecs::add_comp_to<comp::rectangle>(cell_index_to_entity.at(index));
+        myecs::add_comp_to<comp::alive>(cell_index_to_entity.at(index));
+        myecs::add_comp_to<comp::neighbour>(cell_index_to_entity.at(index));
+      }
+    );
     
-      ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false); // permanentely dead
-      
-    }
+    for_each::physical_padded_cell(
+      [&](auto x, auto y, std::size_t index) {
+        myecs::add_comp_to<comp::position_grid>(cell_index_to_entity.at(index));
+        myecs::add_comp_to<comp::alive>(cell_index_to_entity.at(index));
+      }
+    );
 
-     // bottom left to bottom right (inclusive)
-    for (component::type::PosGrid_x x{ 0 }; x.get() < cgl::display_metadata::Physical_GridWidth.get(); x.set(x.get() + 1)) {
 
-      const PosGrid_y y{ cgl::display_metadata::Physical_GridHeight.get() - 1 };  // extreme bottom
-      index = cgl::grid_helper_p::grid_xy_to_array_index(x, y);
 
-      myecs::remove_comp_from<comp::position>(cell_index_to_entity.at(index));
-      myecs::remove_comp_from<comp::rectangle>(cell_index_to_entity.at(index));
-      
-
-      ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false); // permanentely dead
-      
-    }
-
-      // top left to bottom left (EXCLUSIVE)
-    for (component::type::PosGrid_y y{ 1 }; y.get() < cgl::display_metadata::Physical_GridHeight.get() - 1; y.set(y.get() + 1)) {
-
-      const PosGrid_x x{ 0 }; // extreme left
-      index = cgl::grid_helper_p::grid_xy_to_array_index(x, y);
-
-      myecs::remove_comp_from<comp::position>(cell_index_to_entity.at(index));
-      myecs::remove_comp_from<comp::rectangle>(cell_index_to_entity.at(index));
-      
-    
-      ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false); // permanentely dead
-      
-    }
-
-    // top right to bottom right (EXCLUSIVE)
-    for (component::type::PosGrid_y y{ 1 }; y.get() < cgl::display_metadata::Physical_GridHeight.get() - 1; y.set(y.get() + 1)) {
-
-      const PosGrid_x x{ cgl::display_metadata::Physical_GridWidth.get() - 1}; // extreme right
-      index = cgl::grid_helper_p::grid_xy_to_array_index(x, y);
-
-      myecs::remove_comp_from<comp::position>(cell_index_to_entity.at(index));
-      myecs::remove_comp_from<comp::rectangle>(cell_index_to_entity.at(index));
-   
-
-      ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false); // permanentely dead
-      
-    }
-
-    // accessing logical entities (the ones which are actually displayed)
-    // THIS NESTED LOOP OPERATES ON LOGICAL CORDS
-    for (PosGrid_y y{ 0 }; y.get() < cgl::display_metadata::Logical_GridHeight.get(); y.set(y.get() + 1)) {
-      for (PosGrid_x x{ 0 }; x.get() < cgl::display_metadata::Logical_GridWidth.get(); x.set(x.get() + 1)) {
-        index = cgl::grid_helper_lo::grid_xy_to_array_index(x, y);
-        
-        
+    // default values initialization
+    for_each::logical_cell(
+      [&](auto x, auto y, std::size_t index) {
         ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(
-          static_cast<bool>(mgl::xorshift32(initial_seed) % 2) // either 1 or 0
+          static_cast<bool>(mgl::xorshift32(initial_seed) % 2) // either 1 or 0 // random dead or alive
         );
-
         ecs_access(comp::rectangle, cell_index_to_entity.at(index), width).set(cell_width.get());
         ecs_access(comp::rectangle, cell_index_to_entity.at(index), height).set(cell_height.get());
-
       }
-    }
+    );
 
+    for_each::physical_padded_cell(
+      [&](auto x, auto y, std::size_t index) {
+        ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false); // permanently dead
+      }
+    );
+    
   }
 
   template <typename key, typename link>
   void init_entities_pos(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-    using namespace component::type;
-
-    std::size_t total_cells = cell_index_to_entity.dense.size();
-    std::size_t cell_index = 0;
-    std::int32_t x_pix = 0;
-    std::int32_t y_pix = 0;
-
-    assert(cgl::display_metadata::Physical_GridWidth.get() * cgl::display_metadata::Physical_GridHeight.get() == total_cells && "Entity array not equal to width * height");
     
-    // accessing logical entities (the ones which are actually displayed)
-    // THIS NESTED LOOP OPERATES ON LOGICAL CORDS
-    for (PosGrid_y y{ 0 }; y.get() < cgl::display_metadata::Logical_GridHeight.get(); y.set(y.get() + 1)) {
-      for (PosGrid_x x{ 0 }; x.get() < cgl::display_metadata::Logical_GridWidth.get(); x.set(x.get() + 1)) {
+    assert( // invariant check, just in case
+      cgl::display_metadata::Physical_GridWidth.get() * cgl::display_metadata::Physical_GridHeight.get() == cell_index_to_entity.dense.size()
+      && "Entity array not equal to width * height"
+    );
+    
+    using namespace cgl::grid_iterator;
+    
+    for_each::logical_cell(
+      [&](auto x, auto y, std::size_t index) {
 
-        x_pix = x.get() * display_metadata::CellWidth.get();
-        y_pix = y.get() * display_metadata::CellHeight.get();;
+        const std::int32_t x_pix = x.get() * display_metadata::CellWidth.get();
+        const std::int32_t y_pix = y.get() * display_metadata::CellHeight.get();;
 
-        cell_index = cgl::grid_helper_lo::grid_xy_to_array_index(x, y);
+        ecs_access(comp::position, cell_index_to_entity.at(index), x).set(x_pix);
+        ecs_access(comp::position, cell_index_to_entity.at(index), y).set(y_pix);
 
-        ecs_access(comp::position, cell_index_to_entity.at(cell_index), x).set(x_pix);
-        ecs_access(comp::position, cell_index_to_entity.at(cell_index), y).set(y_pix);
-
-        ecs_access(comp::position_grid, cell_index_to_entity.at(cell_index), x).set(x.get());
-        ecs_access(comp::position_grid, cell_index_to_entity.at(cell_index), y).set(y.get());
-        
+        ecs_access(comp::position_grid, cell_index_to_entity.at(index), x).set(x.get());
+        ecs_access(comp::position_grid, cell_index_to_entity.at(index), y).set(y.get());
       }
-    }
+    );
 
   }
 
   template <typename key, typename link>
   void update_entities_VertexArray(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-    using namespace component::type;
-    std::size_t base = 0;
-    std::size_t i = 0; // plysical index for entity array
-    std::size_t logical_i = 0; // logical index for accessing vertex arrays
+    using namespace cgl::grid_iterator;
+   
     sf::Color current_entity_color;
+   
+    for_each::logical_cell(
+      [&](auto logical_x, auto logical_y, std::size_t index) {
+        
+        // logical index for accessing vertex arrays
+        const std::size_t logical_i = cgl::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
+        
+        const std::int32_t x_pix = ecs_access(comp::position, cell_index_to_entity.at(index), x).get();
+        const std::int32_t y_pix = ecs_access(comp::position, cell_index_to_entity.at(index), y).get();
+        const std::int32_t width = ecs_access(comp::rectangle, cell_index_to_entity.at(index), width).get();
+        const std::int32_t height = ecs_access(comp::rectangle, cell_index_to_entity.at(index), height).get();
 
-    // accessing logical entities (the ones which are actually displayed)
-    // THIS NESTED LOOP OPERATES ON LOGICAL CORDS
-    for (PosGrid_y y{ 0 }; y.get() < cgl::display_metadata::Logical_GridHeight.get(); y.set(y.get() + 1)) {
-      for (PosGrid_x x{ 0 }; x.get() < cgl::display_metadata::Logical_GridWidth.get(); x.set(x.get() + 1)) {
-
-        i = cgl::grid_helper_lo::grid_xy_to_array_index(x, y);
-        logical_i = cgl::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(x, y);
-
-        const std::int32_t x_pix = ecs_access(comp::position, cell_index_to_entity.at(i), x).get();
-        const std::int32_t y_pix = ecs_access(comp::position, cell_index_to_entity.at(i), y).get();
-        const std::int32_t width = ecs_access(comp::rectangle, cell_index_to_entity.at(i), width).get();
-        const std::int32_t height = ecs_access(comp::rectangle, cell_index_to_entity.at(i), height).get();
-
-        const auto current_alive = ecs_access(comp::alive, cell_index_to_entity.at(i), value).get();
+        const auto current_alive = ecs_access(comp::alive, cell_index_to_entity.at(index), value).get();
 
         current_entity_color.r = cgl::display_metadata::current_cell_color::r[current_alive];
         current_entity_color.g = cgl::display_metadata::current_cell_color::g[current_alive];
         current_entity_color.b = cgl::display_metadata::current_cell_color::b[current_alive];
 
-        base = logical_i * 4;
+        const std::size_t base = logical_i * 4;
 
         Renderables::entities_VertexArray[base + 0].position.x = x_pix;          // top left
         Renderables::entities_VertexArray[base + 0].position.y = y_pix;
@@ -477,10 +420,8 @@ namespace cgl { // Conways's Game of Life
         Renderables::entities_VertexArray[base + 1].color = current_entity_color;
         Renderables::entities_VertexArray[base + 2].color = current_entity_color;
         Renderables::entities_VertexArray[base + 3].color = current_entity_color;
-
-  
       }
-    }
+    );
     
   }
 
@@ -496,47 +437,33 @@ namespace cgl { // Conways's Game of Life
 
   template <typename key, typename link>
   void update_entities_VertexArray_state_only(const myecs::sparse_set<key, link>& cell_index_to_entity) {
+    using namespace cgl::grid_iterator;
 
-    using namespace component::type;
-    std::size_t base = 0;
-    std::size_t i = 0; // plysical index for entity array
-    std::size_t logical_i = 0; // logical index for accessing vertex arrays
     sf::Color current_entity_color;
 
-    // accessing logical entities (the ones which are actually displayed)
-    // THIS NESTED LOOP OPERATES ON LOGICAL CORDS
-    for (PosGrid_y y{ 0 }; y.get() < cgl::display_metadata::Logical_GridHeight.get(); y.set(y.get() + 1)) {
-      for (PosGrid_x x{ 0 }; x.get() < cgl::display_metadata::Logical_GridWidth.get(); x.set(x.get() + 1)) {
+    for_each::logical_cell(
+      [&](auto logical_x, auto logical_y, std::size_t index) {
 
-        i = cgl::grid_helper_lo::grid_xy_to_array_index(x, y);
-        logical_i = cgl::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(x, y);
+        const std::size_t logical_i = cgl::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
 
-        const auto current_alive = ecs_access(comp::alive, cell_index_to_entity.at(i), value).get();
+        const auto current_alive = ecs_access(comp::alive, cell_index_to_entity.at(index), value).get();
 
         current_entity_color.r = cgl::display_metadata::current_cell_color::r[current_alive];
         current_entity_color.g = cgl::display_metadata::current_cell_color::g[current_alive];
         current_entity_color.b = cgl::display_metadata::current_cell_color::b[current_alive];;
 
-        base = logical_i * 4; 
+        const std::size_t base = logical_i * 4;
 
         Renderables::entities_VertexArray[base + 0].color = current_entity_color;
         Renderables::entities_VertexArray[base + 1].color = current_entity_color;
         Renderables::entities_VertexArray[base + 2].color = current_entity_color;
         Renderables::entities_VertexArray[base + 3].color = current_entity_color;
 
-
       }
-    }
-
+    );
 
   }
 
-  void print_entities_pos(std::vector<entity>& entity_array) {
-    for (std::size_t i = 0; i < entity_array.size(); i++) {
-      std::cout << "ecs_access(comp::position, entity_array[" << i << "], x).get() = " << ecs_access(comp::position, entity_array[i], x).get() << std::endl;
-      std::cout << "ecs_access(comp::position, entity_array[" << i << "], y).get() = " << ecs_access(comp::position, entity_array[i], y).get() << std::endl;
-    }
-  }
 
   void update_border_VertexArray() { // lo = logical
     // OPERATING ON THE VISUAL PART BY REFERRING TO LOGICAL GRID
@@ -685,8 +612,7 @@ namespace cgl { // Conways's Game of Life
     std::int32_t total_neighbours{ 0 };
 
     cgl::grid_iterator::
-    for_each::ranged_physical_cell(
-      cell_index_to_entity,
+    for_each::ranged_physical_cell( 
       start_x,
       start_y,
       range_width,
@@ -704,26 +630,18 @@ namespace cgl { // Conways's Game of Life
 
   template <typename key, typename link>
   void calculate_alive_neighbours(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-    
-    using namespace component::type;
+    using namespace cgl::grid_iterator;
 
-    std::int32_t index{};
-
-    // iterating over the logical grid
-    for (PosGrid_y logical_y{ 0 }; logical_y.get() < cgl::display_metadata::Logical_GridHeight.get(); logical_y.set(logical_y.get() + 1)) {
-      for (PosGrid_x logical_x{ 0 }; logical_x.get() < cgl::display_metadata::Logical_GridWidth.get(); logical_x.set(logical_x.get() + 1)) {
-
-        index = cgl::grid_helper_lo::grid_xy_to_array_index(logical_x, logical_y);
-
-        ecs_access(comp::neighbour, cell_index_to_entity.at(index), count) =   
-        nth_cell_alive_neighbours(
-          cell_index_to_entity,
-          logical_x,
-          logical_y
-        );
-
+    for_each::logical_cell(
+      [&](auto logical_x, auto logical_y, std::size_t index) {
+        ecs_access(comp::neighbour, cell_index_to_entity.at(index), count) =
+          nth_cell_alive_neighbours(
+            cell_index_to_entity,
+            logical_x,
+            logical_y
+          );
       }
-    }
+    );  
    
   }
 
@@ -779,7 +697,7 @@ template <typename key, typename link>
 void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_entity) {
   using namespace cgl::grid_iterator;
 
-  for_each::logical_cell(cell_index_to_entity,
+  for_each::logical_cell(
     [&](auto x, auto y, std::size_t index) {
       cgl::rulebook::apply_rules(cell_index_to_entity.at(index));
     }
@@ -789,13 +707,13 @@ void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_enti
 
 int main() {
 
-  std::uint32_t CGL_SEED = mgl::make_seed_xorshift32(); // mgl = my game library
-  //std::uint32_t CGL_SEED = 50;
+  //std::uint32_t CGL_SEED = mgl::make_seed_xorshift32(); // mgl = my game library
+  std::uint32_t CGL_SEED = 210340070;
   // 
   // Some seeds i found:
   //
   // Beautiful Propagator : 210340070
-  // 
+  // Weird oscilator : 2797493222
   //
   std::cout << "Current seed : " << CGL_SEED << std::endl;
 
