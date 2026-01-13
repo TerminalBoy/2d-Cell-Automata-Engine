@@ -63,6 +63,7 @@ namespace cgl { // Conways's Game of Life
   namespace grid_metadata {
     std::int32_t padding{1}; // physical padding around the edges
     std::int32_t total_logical{}; // total logical cells/entities
+    std::int32_t total_physical{};
   }
 
   // WORKINGS ARE ALWAYS DONE ON THE PHYSICAL GRID, as PHYSICAL GRID IS WHAT EXISTS IN ARRAY/MEMORY !!!
@@ -151,8 +152,8 @@ namespace cgl { // Conways's Game of Life
 
   namespace grid_iterator::for_each {
   
-    template <typename key, typename link, typename Fn>
-    void physical_cell(const myecs::sparse_set<key, link>& cell_index_to_entity, Fn&& task) { //
+    template <typename Fn>
+    void physical_cell(Fn&& task) { //
       using namespace component::type;
 
       const WidthGrid physical_width{ cgl::display_metadata::Physical_GridWidth };
@@ -188,8 +189,7 @@ namespace cgl { // Conways's Game of Life
     }
 
     template <typename key, typename link, typename Fn>
-    void ranged_physical_cell(const myecs::sparse_set<key, link>& cell_index_to_entity,
-                              const component::type::PosGrid_x physical_x,
+    void ranged_physical_cell(const component::type::PosGrid_x physical_x,
                               const component::type::PosGrid_y physical_y,
                               const component::type::WidthGrid range_width,
                               const component::type::HeightGrid range_height,
@@ -214,23 +214,96 @@ namespace cgl { // Conways's Game of Life
 
     }
 
+    
+    // the cells which are used for padding
+    template <typename Fn>
+    void physical_padded_cell(Fn&& task_lambda_ARGS_x_y_index) {
+      using namespace component::type;
+      
+      PosGrid_x start_x{};
+      PosGrid_y start_y{};
+      WidthGrid range_width{};
+      HeightGrid range_height{};
+
+
+      // top left to top right (inclusive)
+      start_x.set(0);
+      start_y.set(0);
+      range_width.set(cgl::display_metadata::Physical_GridWidth.get());
+      range_height.set(1);
+
+      for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
+        task_lambda_ARGS_x_y_index
+      );
+
+    
+      // bottom left to bottom right (inclusive)
+      start_x.set(0);
+      start_y.set(cgl::display_metadata::Physical_GridHeight.get() - 1); // bottom
+      range_width.set(cgl::display_metadata::Physical_GridWidth.get());
+      range_height.set(1);
+
+      for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
+        task_lambda_ARGS_x_y_index
+      );
+
+
+      // top left to bottom left (EXCLUSIVE)
+      start_x.set(0);
+      start_y.set(1); 
+      range_width.set(1);
+      range_height.set(cgl::display_metadata::Physical_GridHeight.get() - 1);
+
+      for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
+        task_lambda_ARGS_x_y_index
+      );
+
+      // top right to bottom right (EXCLUSIVE)
+      start_x.set(cgl::display_metadata::Physical_GridWidth - 1);
+      start_y.set(1);
+      range_width.set(1);
+      range_height.set(cgl::display_metadata::Physical_GridHeight.get() - 1);
+
+      for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
+        task_lambda_ARGS_x_y_index
+      );
+
+    }
+
+  }
+  
+  // user api
+  void init_grid(std::int32_t grid_width, std::int32_t grid_height, std::int32_t cell_width, std::int32_t cell_height, 
+                 std::int32_t grid_padding = 1) { // the dimentions you want
+    using namespace cgl::grid_metadata;
+
+    padding = grid_padding;
+
+    cgl::display_metadata::Physical_GridWidth.set(grid_width + (padding * 2)); // padding on every side
+    cgl::display_metadata::Physical_GridHeight.set(grid_height + (padding * 2));
+
+    cgl::display_metadata::Logical_GridWidth.set(grid_width);
+    cgl::display_metadata::Logical_GridHeight.set(grid_height);
+
+    cgl::grid_metadata::total_logical = grid_width* grid_height;
+
+    cgl::grid_metadata::total_physical = cgl::display_metadata::Physical_GridWidth.get() * cgl::display_metadata::Physical_GridHeight.get();
+
+    cgl::display_metadata::CellWidth.set(cell_width);
+    cgl::display_metadata::CellHeight.set(cell_height);
+
   }
 
   template <typename key, typename link>
-  void create_entities(myecs::sparse_set<key, link>& cell_index_to_entity, component::type::WidthGrid logical_width, component::type::HeightGrid logical_height) {
-    using namespace cgl::grid_metadata;
+  void create_entities(myecs::sparse_set<key, link>& cell_index_to_entity) {
+    using namespace cgl::grid_iterator;
 
-    cgl::display_metadata::Physical_GridWidth.set(logical_width.get() + (padding * 2));
-    cgl::display_metadata::Physical_GridHeight.set(logical_height.get() + (padding * 2));
-
-    cgl::grid_metadata::total_logical = logical_width.get() * logical_height.get();
-
-    std::int32_t amount = display_metadata::Physical_GridWidth.get() * display_metadata::Physical_GridHeight.get(); 
-                                                                  // logical grid stays width * height
-    for (std::size_t i = 0; i < amount; i++) {
-      cell_index_to_entity.insert(i, myecs::create_entity());
-
-    }
+    for_each::physical_cell(
+      [&](auto x, auto y, std::size_t index) {
+        cell_index_to_entity.insert(index, myecs::create_entity());
+      }
+    );
+    
   }
   
   template <typename key, typename link>
@@ -726,12 +799,7 @@ int main() {
   //
   std::cout << "Current seed : " << CGL_SEED << std::endl;
 
-  cgl::display_metadata::Logical_GridWidth.set(40);
-  cgl::display_metadata::Logical_GridHeight.set(40);
-
-  cgl::display_metadata::CellWidth.set(20);
-  cgl::display_metadata::CellHeight.set(20);
-  
+  cgl::init_grid(40, 40, 20, 20);  
 
   const component::type::WidthPix DisplayWindow_Width{ cgl::display_metadata::CellWidth.get() * cgl::display_metadata::Logical_GridWidth.get()};
   const component::type::HeightPix DisplayWindow_Height{ cgl::display_metadata::CellHeight.get() * cgl::display_metadata::Logical_GridHeight.get() };
@@ -744,11 +812,7 @@ int main() {
   myecs::sparse_set<std::uint32_t, entity> cell_index_to_entity; // REFERRES TO PHYSICAL //  will have padding of one cell around the edges
   myecs::sparse_set<std::uint32_t, entity> NextGen_buffer; // will only hold dead or alive, only for the next generation / tick
  
-  cgl::create_entities(
-    cell_index_to_entity,
-    cgl::display_metadata::Logical_GridWidth, 
-    cgl::display_metadata::Logical_GridHeight
-  ); // creates the total number of entities
+  cgl::create_entities(cell_index_to_entity); // creates the total number of entities
   
 
   cgl::init_entities(
