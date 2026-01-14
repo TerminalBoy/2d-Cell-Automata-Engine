@@ -24,7 +24,7 @@
 // 
 // LOGICAL GRID EXISTS BECAUSE THE PHYSICAL GRID COMPRISES OF PADDINGS TO IMPORVE PERFOMANCE IN HOT LOOPS AS BY MINIMIZING BRANCHING
 
-namespace cgl { // Conways's Game of Life
+namespace cae { // Conways's Game of Life
   // what shoud we call the cells / the live or dead entities ? 
   // we are calling it entity/entities
   
@@ -72,23 +72,23 @@ namespace cgl { // Conways's Game of Life
   namespace grid_helper_p { // _p = physical, refers to the actual physical(in memory/array) grid 
     using namespace component::type;
     PosPix_x grid_x_to_pixel__x(PosGrid_x physical_x) {
-      return PosPix_x{ physical_x.get() * cgl::display_metadata::CellWidth.get() };
+      return PosPix_x{ physical_x.get() * cae::display_metadata::CellWidth.get() };
     }
 
     PosPix_y grid_y_to_pixel__y(PosGrid_y physical_y) {
-      return PosPix_y{ physical_y.get() * cgl::display_metadata::CellHeight.get() };
+      return PosPix_y{ physical_y.get() * cae::display_metadata::CellHeight.get() };
     }
 
     PosGrid_x pixel_x_to_grid__x(std::int32_t x) {
-      return PosGrid_x{ x / cgl::display_metadata::CellWidth.get() };
+      return PosGrid_x{ x / cae::display_metadata::CellWidth.get() };
     }
 
     PosGrid_y pixel_y_to_grid__y(std::int32_t y) {
-      return PosGrid_y{ y / cgl::display_metadata::CellHeight.get() };
+      return PosGrid_y{ y / cae::display_metadata::CellHeight.get() };
     }
 
     std::int32_t grid_xy_to_array_index(PosGrid_x physical_x, PosGrid_y physical_y) {
-      return (physical_y.get() * cgl::display_metadata::Physical_GridWidth.get()) + physical_x.get();
+      return (physical_y.get() * cae::display_metadata::Physical_GridWidth.get()) + physical_x.get();
     }
   }
   
@@ -103,39 +103,39 @@ namespace cgl { // Conways's Game of Life
     using namespace component::type;
     /*
     PosPix_x grid_x_to_pixel__x(PosGrid_x x) {
-      return PosPix_x{ x.get() * cgl::display_metadata::CellWidth.get() };
+      return PosPix_x{ x.get() * cae::display_metadata::CellWidth.get() };
     }
 
     PosPix_y grid_y_to_pixel__y(PosGrid_y y) {
-      return PosPix_y{ y.get() * cgl::display_metadata::CellHeight.get() };
+      return PosPix_y{ y.get() * cae::display_metadata::CellHeight.get() };
     }
 
     PosGrid_x pixel_x_to_grid__x(std::int32_t x) {
-      return PosGrid_x{ x / cgl::display_metadata::CellWidth.get() };
+      return PosGrid_x{ x / cae::display_metadata::CellWidth.get() };
     }
 
     PosGrid_y pixel_y_to_grid__y(std::int32_t y) {
-      return PosGrid_y{ y / cgl::display_metadata::CellHeight.get() };
+      return PosGrid_y{ y / cae::display_metadata::CellHeight.get() };
     }
     */
 
     std::size_t grid_xy_to_array_index(PosGrid_x logical_x, PosGrid_y logical_y) { // returns a physical index from logical co-ordinates
-      logical_x.set(logical_x.get() + cgl::grid_metadata::padding); // increment both by the padding to convert to physical cords
-      logical_y.set(logical_y.get() + cgl::grid_metadata::padding);
-      return cgl::grid_helper_p::grid_xy_to_array_index(logical_x, logical_y);
+      logical_x.set(logical_x.get() + cae::grid_metadata::padding); // increment both by the padding to convert to physical cords
+      logical_y.set(logical_y.get() + cae::grid_metadata::padding);
+      return cae::grid_helper_p::grid_xy_to_array_index(logical_x, logical_y);
     }
 
     // THIS RETURNS A LOGICAL INDEX FROM LOGICAL CORDS
     std::size_t grid_xy_to_array_index_RETURN_LOGICAL(PosGrid_x logical_x, PosGrid_y logical_y) { // returns a physical index from logical co-ordinates
-      return ( logical_y.get() * cgl::display_metadata::Logical_GridWidth.get() ) + logical_x.get();
+      return ( logical_y.get() * cae::display_metadata::Logical_GridWidth.get() ) + logical_x.get();
     }
     
     PosGrid_x grid_xLogical_to_grid_xPhysical(PosGrid_x logical_x) {
-      return PosGrid_x{ logical_x.get() + cgl::grid_metadata::padding };
+      return PosGrid_x{ logical_x.get() + cae::grid_metadata::padding };
     }
   
     PosGrid_y grid_yLogical_to_grid_yPhysical(PosGrid_y logical_y) {
-      return PosGrid_y{ logical_y.get() + cgl::grid_metadata::padding };
+      return PosGrid_y{ logical_y.get() + cae::grid_metadata::padding };
     }
 
   }
@@ -147,8 +147,8 @@ namespace cgl { // Conways's Game of Life
     static inline sf::Color entities_Color;
   };
   
-  int cgl_true = 1;
-  int cgl_false = 0;
+  int cae_true = 1;
+  int cae_false = 0;
 
   namespace grid_iterator::for_each {
   
@@ -156,13 +156,13 @@ namespace cgl { // Conways's Game of Life
     void physical_cell(Fn&& task) { //
       using namespace component::type;
 
-      const WidthGrid physical_width{ cgl::display_metadata::Physical_GridWidth };
-      const HeightGrid physical_height{ cgl::display_metadata::Physical_GridHeight };      
+      const WidthGrid physical_width{ cae::display_metadata::Physical_GridWidth };
+      const HeightGrid physical_height{ cae::display_metadata::Physical_GridHeight };      
 
       for (PosGrid_y physical_y{ 0 }; physical_y.get() < physical_height.get(); physical_y.set(physical_y.get() + 1)) {
         for (PosGrid_x physical_x{ 0 }; physical_x.get() < physical_width.get(); physical_x.set(physical_x.get() + 1)) {
           
-          const std::size_t index = cgl::grid_helper_p::grid_xy_to_array_index(physical_x, physical_y);
+          const std::size_t index = cae::grid_helper_p::grid_xy_to_array_index(physical_x, physical_y);
           task(physical_x, physical_y, index); // perfectly forwaded lamda
 
         }
@@ -174,14 +174,14 @@ namespace cgl { // Conways's Game of Life
     void logical_cell(Fn&& task) {
       using namespace component::type;
 
-      const WidthGrid logical_width{ cgl::display_metadata::Logical_GridWidth };
-      const HeightGrid logical_height{ cgl::display_metadata::Logical_GridHeight };
+      const WidthGrid logical_width{ cae::display_metadata::Logical_GridWidth };
+      const HeightGrid logical_height{ cae::display_metadata::Logical_GridHeight };
 
 
       for (PosGrid_y logical_y{ 0 }; logical_y.get() < logical_height.get(); logical_y.set(logical_y.get() + 1)) {
         for (PosGrid_x logical_x{ 0 }; logical_x.get() < logical_width.get(); logical_x.set(logical_x.get() + 1)) {
               
-          const std::size_t index = cgl::grid_helper_lo::grid_xy_to_array_index(logical_x, logical_y);
+          const std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(logical_x, logical_y);
           task(logical_x, logical_y, index);
         
         }
@@ -206,7 +206,7 @@ namespace cgl { // Conways's Game of Life
       for (PosGrid_y current_y{ start_y }; current_y.get() < end_y.get(); current_y.set(current_y.get() + 1)) {
         for (PosGrid_x current_x{ start_x }; current_x.get() < end_x.get(); current_x.set(current_x.get() + 1)) {
 
-          const std::size_t index = cgl::grid_helper_p::grid_xy_to_array_index(current_x, current_y);
+          const std::size_t index = cae::grid_helper_p::grid_xy_to_array_index(current_x, current_y);
           task(current_x, current_y, index); // perfectly forwaded lamda
 
         }
@@ -222,18 +222,18 @@ namespace cgl { // Conways's Game of Life
       
       PosGrid_x start_x{};
       PosGrid_y start_y{};
-      const PosGrid_x max_x{ cgl::display_metadata::Physical_GridWidth.get() - 1 };
-      const PosGrid_y max_y{ cgl::display_metadata::Physical_GridHeight.get() - 1 };
+      const PosGrid_x max_x{ cae::display_metadata::Physical_GridWidth.get() - 1 };
+      const PosGrid_y max_y{ cae::display_metadata::Physical_GridHeight.get() - 1 };
 
       WidthGrid range_width{};
       HeightGrid range_height{};
 
-      const std::int32_t& padd = cgl::grid_metadata::padding;
+      const std::int32_t& padd = cae::grid_metadata::padding;
 
       // top left to top right (inclusive)
       start_x.set(0);
       start_y.set(0);
-      range_width.set(cgl::display_metadata::Physical_GridWidth.get());
+      range_width.set(cae::display_metadata::Physical_GridWidth.get());
       range_height.set(padd);
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
@@ -243,8 +243,8 @@ namespace cgl { // Conways's Game of Life
     
       // bottom left to bottom right (inclusive)
       start_x.set(0);
-      start_y.set(cgl::display_metadata::Physical_GridHeight.get() - padd); // bottom
-      range_width.set(cgl::display_metadata::Physical_GridWidth.get());
+      start_y.set(cae::display_metadata::Physical_GridHeight.get() - padd); // bottom
+      range_width.set(cae::display_metadata::Physical_GridWidth.get());
       range_height.set(padd);
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
@@ -256,17 +256,17 @@ namespace cgl { // Conways's Game of Life
       start_x.set(0);
       start_y.set(padd); 
       range_width.set(padd);
-      range_height.set(cgl::display_metadata::Logical_GridHeight.get()); // as padding is on both top and bottom
+      range_height.set(cae::display_metadata::Logical_GridHeight.get()); // as padding is on both top and bottom
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
         task_lambda_ARGS_x_y_index
       );
 
       // top right to bottom right (EXCLUSIVE) or LOGICAL
-      start_x.set(cgl::display_metadata::Physical_GridWidth.get() - padd);
+      start_x.set(cae::display_metadata::Physical_GridWidth.get() - padd);
       start_y.set(padd);
       range_width.set(padd);
-      range_height.set(cgl::display_metadata::Logical_GridHeight.get()); // as padding is on both top and bottom
+      range_height.set(cae::display_metadata::Logical_GridHeight.get()); // as padding is on both top and bottom
 
       for_each::ranged_physical_cell(start_x, start_y, range_width, range_height,
         task_lambda_ARGS_x_y_index
@@ -279,28 +279,28 @@ namespace cgl { // Conways's Game of Life
   // user api
   void init_grid(std::int32_t grid_width, std::int32_t grid_height, std::int32_t cell_width, std::int32_t cell_height, 
                  std::int32_t grid_padding = 1) { // the dimentions you want
-    using namespace cgl::grid_metadata;
+    using namespace cae::grid_metadata;
 
     padding = grid_padding;
 
-    cgl::display_metadata::Physical_GridWidth.set(grid_width + (padding * 2)); // padding on every side
-    cgl::display_metadata::Physical_GridHeight.set(grid_height + (padding * 2));
+    cae::display_metadata::Physical_GridWidth.set(grid_width + (padding * 2)); // padding on every side
+    cae::display_metadata::Physical_GridHeight.set(grid_height + (padding * 2));
 
-    cgl::display_metadata::Logical_GridWidth.set(grid_width);
-    cgl::display_metadata::Logical_GridHeight.set(grid_height);
+    cae::display_metadata::Logical_GridWidth.set(grid_width);
+    cae::display_metadata::Logical_GridHeight.set(grid_height);
 
-    cgl::grid_metadata::total_logical = grid_width* grid_height;
+    cae::grid_metadata::total_logical = grid_width* grid_height;
 
-    cgl::grid_metadata::total_physical = cgl::display_metadata::Physical_GridWidth.get() * cgl::display_metadata::Physical_GridHeight.get();
+    cae::grid_metadata::total_physical = cae::display_metadata::Physical_GridWidth.get() * cae::display_metadata::Physical_GridHeight.get();
 
-    cgl::display_metadata::CellWidth.set(cell_width);
-    cgl::display_metadata::CellHeight.set(cell_height);
+    cae::display_metadata::CellWidth.set(cell_width);
+    cae::display_metadata::CellHeight.set(cell_height);
 
   }
 
   template <typename key, typename link>
   void create_entities(myecs::sparse_set<key, link>& cell_index_to_entity) {
-    using namespace cgl::grid_iterator;
+    using namespace cae::grid_iterator;
 
     for_each::physical_cell(
       [&](auto x, auto y, std::size_t index) {
@@ -312,7 +312,7 @@ namespace cgl { // Conways's Game of Life
   
   template <typename key, typename link>
   void init_entities(const myecs::sparse_set<key, link>& cell_index_to_entity, const component::type::WidthPix cell_width, const component::type::HeightPix cell_height, std::uint32_t initial_seed = 0) {
-    using namespace cgl::grid_iterator;
+    using namespace cae::grid_iterator;
 
     // ECS registry/storage initialization
     for_each::logical_cell(
@@ -357,11 +357,11 @@ namespace cgl { // Conways's Game of Life
   void init_entities_pos(const myecs::sparse_set<key, link>& cell_index_to_entity) {
     
     assert( // invariant check, just in case
-      cgl::display_metadata::Physical_GridWidth.get() * cgl::display_metadata::Physical_GridHeight.get() == cell_index_to_entity.dense.size()
+      cae::display_metadata::Physical_GridWidth.get() * cae::display_metadata::Physical_GridHeight.get() == cell_index_to_entity.dense.size()
       && "Entity array not equal to width * height"
     );
     
-    using namespace cgl::grid_iterator;
+    using namespace cae::grid_iterator;
     
     for_each::logical_cell(
       [&](auto x, auto y, std::size_t index) {
@@ -381,7 +381,7 @@ namespace cgl { // Conways's Game of Life
 
   template <typename key, typename link>
   void update_entities_VertexArray(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-    using namespace cgl::grid_iterator;
+    using namespace cae::grid_iterator;
    
     sf::Color current_entity_color;
    
@@ -389,7 +389,7 @@ namespace cgl { // Conways's Game of Life
       [&](auto logical_x, auto logical_y, std::size_t index) {
         
         // logical index for accessing vertex arrays
-        const std::size_t logical_i = cgl::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
+        const std::size_t logical_i = cae::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
         
         const std::int32_t x_pix = ecs_access(comp::position, cell_index_to_entity.at(index), x).get();
         const std::int32_t y_pix = ecs_access(comp::position, cell_index_to_entity.at(index), y).get();
@@ -398,9 +398,9 @@ namespace cgl { // Conways's Game of Life
 
         const auto current_alive = ecs_access(comp::alive, cell_index_to_entity.at(index), value).get();
 
-        current_entity_color.r = cgl::display_metadata::current_cell_color::r[current_alive];
-        current_entity_color.g = cgl::display_metadata::current_cell_color::g[current_alive];
-        current_entity_color.b = cgl::display_metadata::current_cell_color::b[current_alive];
+        current_entity_color.r = cae::display_metadata::current_cell_color::r[current_alive];
+        current_entity_color.g = cae::display_metadata::current_cell_color::g[current_alive];
+        current_entity_color.b = cae::display_metadata::current_cell_color::b[current_alive];
 
         const std::size_t base = logical_i * 4;
 
@@ -428,7 +428,7 @@ namespace cgl { // Conways's Game of Life
   template <typename key, typename link>
   void init_entities_VertexArray(const myecs::sparse_set<key, link>& cell_index_to_entity) {
     Renderables::entities_VertexArray.setPrimitiveType(sf::Quads);
-    Renderables::entities_VertexArray.resize(cgl::grid_metadata::total_logical * 4);
+    Renderables::entities_VertexArray.resize(cae::grid_metadata::total_logical * 4);
     
 
     update_entities_VertexArray(cell_index_to_entity);
@@ -437,20 +437,20 @@ namespace cgl { // Conways's Game of Life
 
   template <typename key, typename link>
   void update_entities_VertexArray_state_only(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-    using namespace cgl::grid_iterator;
+    using namespace cae::grid_iterator;
 
     sf::Color current_entity_color;
 
     for_each::logical_cell(
       [&](auto logical_x, auto logical_y, std::size_t index) {
 
-        const std::size_t logical_i = cgl::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
+        const std::size_t logical_i = cae::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
 
         const auto current_alive = ecs_access(comp::alive, cell_index_to_entity.at(index), value).get();
 
-        current_entity_color.r = cgl::display_metadata::current_cell_color::r[current_alive];
-        current_entity_color.g = cgl::display_metadata::current_cell_color::g[current_alive];
-        current_entity_color.b = cgl::display_metadata::current_cell_color::b[current_alive];;
+        current_entity_color.r = cae::display_metadata::current_cell_color::r[current_alive];
+        current_entity_color.g = cae::display_metadata::current_cell_color::g[current_alive];
+        current_entity_color.b = cae::display_metadata::current_cell_color::b[current_alive];;
 
         const std::size_t base = logical_i * 4;
 
@@ -596,9 +596,9 @@ namespace cgl { // Conways's Game of Life
     const component::type::PosGrid_y logical_y) { // takes logical index
     using namespace component::type;
 
-    const std::size_t center_cell_index = cgl::grid_helper_lo::grid_xy_to_array_index(logical_x, logical_y);
+    const std::size_t center_cell_index = cae::grid_helper_lo::grid_xy_to_array_index(logical_x, logical_y);
 
-    const std::int32_t TopmostLeft_offset = cgl::grid_metadata::padding;
+    const std::int32_t TopmostLeft_offset = cae::grid_metadata::padding;
 
     const PosGrid_x physical_neighbour_TopmostLeft_x{ grid_helper_lo::grid_xLogical_to_grid_xPhysical(logical_x).get() - TopmostLeft_offset };
     const PosGrid_y physical_neighbour_TopmostLeft_y{ grid_helper_lo::grid_yLogical_to_grid_yPhysical(logical_y).get() - TopmostLeft_offset };
@@ -606,12 +606,12 @@ namespace cgl { // Conways's Game of Life
     const PosGrid_x start_x{ physical_neighbour_TopmostLeft_x };
     const PosGrid_y start_y{ physical_neighbour_TopmostLeft_y };
 
-    const WidthGrid range_width{ (cgl::grid_metadata::padding * 2) + 1 }; // *2 because padding is in both sides and + 1 to also include the center (main) cell
-    const HeightGrid range_height{ (cgl::grid_metadata::padding * 2) + 1 };
+    const WidthGrid range_width{ (cae::grid_metadata::padding * 2) + 1 }; // *2 because padding is in both sides and + 1 to also include the center (main) cell
+    const HeightGrid range_height{ (cae::grid_metadata::padding * 2) + 1 };
 
     std::int32_t total_neighbours{ 0 };
 
-    cgl::grid_iterator::
+    cae::grid_iterator::
     for_each::ranged_physical_cell( 
       start_x,
       start_y,
@@ -630,7 +630,7 @@ namespace cgl { // Conways's Game of Life
 
   template <typename key, typename link>
   void calculate_alive_neighbours(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-    using namespace cgl::grid_iterator;
+    using namespace cae::grid_iterator;
 
     for_each::logical_cell(
       [&](auto logical_x, auto logical_y, std::size_t index) {
@@ -647,13 +647,13 @@ namespace cgl { // Conways's Game of Life
 
   template <typename key, typename link>
   void print_everycell_neighbour_count(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-    using namespace cgl::grid_iterator;
+    using namespace cae::grid_iterator;
     
     for_each::logical_cell(cell_index_to_entity,
 
       [&](auto x, auto y, std::size_t index) {
         
-        const std::size_t logical_index = cgl::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(x, y);
+        const std::size_t logical_index = cae::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(x, y);
         
         std::cout << "cell " << logical_index << " total neighbours : "
           << ecs_access(comp::neighbour, cell_index_to_entity.at(index), count)
@@ -682,7 +682,7 @@ namespace cgl { // Conways's Game of Life
   }
 }
 
-namespace cgl::rulebook {
+namespace cae::rulebook {
   void apply_rules(const entity current_id) {
     const auto& neighbours = ecs_access(comp::neighbour, current_id, count);
     const bool current_alive = ecs_access(comp::alive, current_id, value).get();
@@ -695,11 +695,11 @@ namespace cgl::rulebook {
 
 template <typename key, typename link>
 void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_entity) {
-  using namespace cgl::grid_iterator;
+  using namespace cae::grid_iterator;
 
   for_each::logical_cell(
     [&](auto x, auto y, std::size_t index) {
-      cgl::rulebook::apply_rules(cell_index_to_entity.at(index));
+      cae::rulebook::apply_rules(cell_index_to_entity.at(index));
     }
   );
 
@@ -707,20 +707,20 @@ void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_enti
 
 int main() {
 
-  //std::uint32_t CGL_SEED = mgl::make_seed_xorshift32(); // mgl = my game library
-  std::uint32_t CGL_SEED = 210340070;
+  //std::uint32_t CAE_SEED = mgl::make_seed_xorshift32(); // mgl = my game library
+  std::uint32_t CAE_SEED = 210340070;
   // 
   // Some seeds i found:
   //
   // Beautiful Propagator : 210340070
   // Weird oscilator : 2797493222
   //
-  std::cout << "Current seed : " << CGL_SEED << std::endl;
+  std::cout << "Current seed : " << CAE_SEED << std::endl;
 
-  cgl::init_grid(40, 40, 20, 20);  
+  cae::init_grid(40, 40, 20, 20);  
 
-  const component::type::WidthPix DisplayWindow_Width{ cgl::display_metadata::CellWidth.get() * cgl::display_metadata::Logical_GridWidth.get()};
-  const component::type::HeightPix DisplayWindow_Height{ cgl::display_metadata::CellHeight.get() * cgl::display_metadata::Logical_GridHeight.get() };
+  const component::type::WidthPix DisplayWindow_Width{ cae::display_metadata::CellWidth.get() * cae::display_metadata::Logical_GridWidth.get()};
+  const component::type::HeightPix DisplayWindow_Height{ cae::display_metadata::CellHeight.get() * cae::display_metadata::Logical_GridHeight.get() };
 
   sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Hellow world");
   sf::Event event;
@@ -730,25 +730,25 @@ int main() {
   myecs::sparse_set<std::uint32_t, entity> cell_index_to_entity; // REFERRES TO PHYSICAL //  will have padding of one cell around the edges
   myecs::sparse_set<std::uint32_t, entity> NextGen_buffer; // will only hold dead or alive, only for the next generation / tick
  
-  cgl::create_entities(cell_index_to_entity); // creates the total number of entities
+  cae::create_entities(cell_index_to_entity); // creates the total number of entities
   
 
-  cgl::init_entities(
+  cae::init_entities(
     cell_index_to_entity,
-    cgl::display_metadata::CellWidth, 
-    cgl::display_metadata::CellHeight,
-    CGL_SEED // <-- this creates noise (random dead or alive)
+    cae::display_metadata::CellWidth, 
+    cae::display_metadata::CellHeight,
+    CAE_SEED // <-- this creates noise (random dead or alive)
   ); // adds necessarry components to the entities
   
 
-  cgl::init_entities_pos(cell_index_to_entity);
+  cae::init_entities_pos(cell_index_to_entity);
   
-  cgl::init_entities_VertexArray(cell_index_to_entity);
+  cae::init_entities_VertexArray(cell_index_to_entity);
 
-  cgl::init_border_VertexArray();
+  cae::init_border_VertexArray();
   
-  //cgl::calculate_alive_neighbours(cell_index_to_entity);
-  //cgl::print_everycell_neighbour_count(cell_index_to_entity);
+  //cae::calculate_alive_neighbours(cell_index_to_entity);
+  //cae::print_everycell_neighbour_count(cell_index_to_entity);
 
   while (DisplayWindow.isOpen()) {
     
@@ -756,15 +756,15 @@ int main() {
       if (event.type == sf::Event::Closed) DisplayWindow.close();
     }
 
-    cgl::calculate_alive_neighbours(cell_index_to_entity);
+    cae::calculate_alive_neighbours(cell_index_to_entity);
 
     conways_game_of_life(cell_index_to_entity);
 
-    cgl::update_entities_VertexArray_state_only(cell_index_to_entity);
+    cae::update_entities_VertexArray_state_only(cell_index_to_entity);
     DisplayWindow.clear(sf::Color::Black);
-    DisplayWindow.draw(cgl::Renderables::entities_VertexArray);
-    DisplayWindow.draw(cgl::Renderables::border_horizontal);
-    DisplayWindow.draw(cgl::Renderables::border_vertical);
+    DisplayWindow.draw(cae::Renderables::entities_VertexArray);
+    DisplayWindow.draw(cae::Renderables::border_horizontal);
+    DisplayWindow.draw(cae::Renderables::border_vertical);
     
     DisplayWindow.display();
   }
