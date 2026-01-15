@@ -731,7 +731,11 @@ namespace cae::input {
     PosGrid_y mouse_grid_y{ cae::grid_helper_lo::pixel_y_to_grid__y(mouse_y.get()) };
 
     std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(mouse_grid_x, mouse_grid_y);
-  
+    /*
+    if (!window.hasFocus()) {
+      std::cout << "\nCancelled Draw, Window out of focus\n";
+      return;
+    }*/
     ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(true);
     
   }
@@ -749,7 +753,11 @@ namespace cae::input {
     PosGrid_y mouse_grid_y{ cae::grid_helper_lo::pixel_y_to_grid__y(mouse_y.get()) };
 
     std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(mouse_grid_x, mouse_grid_y);
-
+    /*
+    if (!window.hasFocus()) {
+      std::cout << "\nCancelled Erase, Window out of focus\n";
+      return;
+    }*/
     ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false);
 
   }
@@ -819,13 +827,13 @@ int main() {
       if (event.type == sf::Event::Closed) DisplayWindow.close();
     }
 
-    if (cae::input::is_drawing()) {
+    if (cae::input::is_drawing() && DisplayWindow.hasFocus()) {
       cae::input::draw(DisplayWindow, cell_index_to_entity);
     }
-    else if (cae::input::is_erasing()) {
+    else if (cae::input::is_erasing() && DisplayWindow.hasFocus()) {
       cae::input::erase(DisplayWindow, cell_index_to_entity);
     }
-    else if (!cae::input::is_paused()){
+    else if (!cae::input::is_paused() && DisplayWindow.hasFocus()){
       cae::calculate_alive_neighbours(cell_index_to_entity);
       conways_game_of_life(cell_index_to_entity);
     }
