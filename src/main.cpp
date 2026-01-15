@@ -109,7 +109,7 @@ namespace cae { // Conways's Game of Life
     PosPix_y grid_y_to_pixel__y(PosGrid_y y) {
       return PosPix_y{ y.get() * cae::display_metadata::CellHeight.get() };
     }
-
+    */
     PosGrid_x pixel_x_to_grid__x(std::int32_t x) {
       return PosGrid_x{ x / cae::display_metadata::CellWidth.get() };
     }
@@ -117,7 +117,7 @@ namespace cae { // Conways's Game of Life
     PosGrid_y pixel_y_to_grid__y(std::int32_t y) {
       return PosGrid_y{ y / cae::display_metadata::CellHeight.get() };
     }
-    */
+    
 
     std::size_t grid_xy_to_array_index(PosGrid_x logical_x, PosGrid_y logical_y) { // returns a physical index from logical co-ordinates
       logical_x.set(logical_x.get() + cae::grid_metadata::padding); // increment both by the padding to convert to physical cords
@@ -693,6 +693,69 @@ namespace cae::rulebook {
   }
 }
 
+namespace cae::input {
+  bool is_paused() {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl)) return true;
+    return false;
+  }
+
+  bool is_drawing() {
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+
+
+  bool is_erasing() {
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+
+  template <typename key, typename link>
+  void draw(sf::RenderWindow& window, const myecs::sparse_set<key, link>& cell_index_to_entity) {
+    using namespace component::type;
+    sf::Vector2i mousepos = sf::Mouse::getPosition(window);
+
+    PosPix_x mouse_x{ mousepos.x };
+    PosPix_y mouse_y{ mousepos.y };
+
+    // view cordinates // is never physical
+    PosGrid_x mouse_grid_x{ cae::grid_helper_lo::pixel_x_to_grid__x(mouse_x.get()) };
+    PosGrid_y mouse_grid_y{ cae::grid_helper_lo::pixel_y_to_grid__y(mouse_y.get()) };
+
+    std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(mouse_grid_x, mouse_grid_y);
+  
+    ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(true);
+    
+  }
+
+  template <typename key, typename link>
+  void erase(sf::RenderWindow& window, const myecs::sparse_set<key, link>& cell_index_to_entity) {
+    using namespace component::type;
+    sf::Vector2i mousepos = sf::Mouse::getPosition(window);
+
+    PosPix_x mouse_x{ mousepos.x };
+    PosPix_y mouse_y{ mousepos.y };
+
+    // view cordinates // is never physical
+    PosGrid_x mouse_grid_x{ cae::grid_helper_lo::pixel_x_to_grid__x(mouse_x.get()) };
+    PosGrid_y mouse_grid_y{ cae::grid_helper_lo::pixel_y_to_grid__y(mouse_y.get()) };
+
+    std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(mouse_grid_x, mouse_grid_y);
+
+    ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false);
+
+  }
+
+}
+
 template <typename key, typename link>
 void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_entity) {
   using namespace cae::grid_iterator;
@@ -708,7 +771,7 @@ void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_enti
 int main() {
 
   //std::uint32_t CAE_SEED = mgl::make_seed_xorshift32(); // mgl = my game library
-  std::uint32_t CAE_SEED = 210340070;
+  std::uint32_t CAE_SEED = 0;
   // 
   // Some seeds i found:
   //
@@ -722,9 +785,9 @@ int main() {
   const component::type::WidthPix DisplayWindow_Width{ cae::display_metadata::CellWidth.get() * cae::display_metadata::Logical_GridWidth.get()};
   const component::type::HeightPix DisplayWindow_Height{ cae::display_metadata::CellHeight.get() * cae::display_metadata::Logical_GridHeight.get() };
 
-  sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Hellow world");
+  sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Cellular Automata Engine (Runnig: Comway's Game of Life) | Hold LCtrl to pause | Right click to draw, Left click to erase");
   sf::Event event;
-  DisplayWindow.setFramerateLimit(60);
+  DisplayWindow.setFramerateLimit(8);
 
   
   myecs::sparse_set<std::uint32_t, entity> cell_index_to_entity; // REFERRES TO PHYSICAL //  will have padding of one cell around the edges
@@ -756,9 +819,16 @@ int main() {
       if (event.type == sf::Event::Closed) DisplayWindow.close();
     }
 
-    cae::calculate_alive_neighbours(cell_index_to_entity);
-
-    conways_game_of_life(cell_index_to_entity);
+    if (cae::input::is_drawing()) {
+      cae::input::draw(DisplayWindow, cell_index_to_entity);
+    }
+    else if (cae::input::is_erasing()) {
+      cae::input::erase(DisplayWindow, cell_index_to_entity);
+    }
+    else if (!cae::input::is_paused()){
+      cae::calculate_alive_neighbours(cell_index_to_entity);
+      conways_game_of_life(cell_index_to_entity);
+    }
 
     cae::update_entities_VertexArray_state_only(cell_index_to_entity);
     DisplayWindow.clear(sf::Color::Black);
