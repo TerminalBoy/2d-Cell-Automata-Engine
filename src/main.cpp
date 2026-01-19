@@ -793,7 +793,7 @@ int main() {
   const component::type::WidthPix DisplayWindow_Width{ cae::display_metadata::CellWidth.get() * cae::display_metadata::Logical_GridWidth.get()};
   const component::type::HeightPix DisplayWindow_Height{ cae::display_metadata::CellHeight.get() * cae::display_metadata::Logical_GridHeight.get() };
 
-  sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Cellular Automata Engine (Runnig: Comway's Game of Life) | Hold LCtrl to pause | Right click to draw, Left click to erase");
+  sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Cellular Automata Engine (Runnig: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase");
   sf::Event event;
   DisplayWindow.setFramerateLimit(8);
 
