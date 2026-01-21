@@ -8,6 +8,9 @@
 #include <iostream>
 #include <stdio.h>
 #include <vector>
+#include <array>
+#include <chrono>
+#include <utility>
 #include "../dependencies/Custom_ECS/include/EntityComponentSystem.hpp"
 #include "../dependencies/RNG/include/random.hpp" // seed based random number generator - xorshift32
 #include <SFML/Graphics.hpp>
@@ -776,7 +779,66 @@ void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_enti
 
 }
 
+namespace Profile {
+  constexpr std::size_t total_ticks_to_profile = 10;
+  bool ended = false;
+  
+  using clock = std::chrono::steady_clock;
+  using ns = std::chrono::nanoseconds;
+
+  struct Timer {
+    std::string ProfileName;
+    std::array<std::uint64_t, total_ticks_to_profile> ProfileTimeRingBuffer;
+    clock::time_point ProfileStartTime;
+    clock::time_point ProfileEndTime;
+    std::uint64_t CurrentWriteIndex;
+
+    explicit Timer(const std::string& ProfileName) 
+      : ProfileName(ProfileName), 
+        CurrentWriteIndex(0)
+    {
+    }
+    
+    void WriteToBuffer(auto elasped) {
+      if (CurrentWriteIndex >= total_ticks_to_profile) CurrentWriteIndex = 0;
+      ProfileTimeRingBuffer[CurrentWriteIndex] = elasped;
+      ++CurrentWriteIndex;
+    }
+
+    void StartProfile() {
+      ProfileStartTime = clock::now();
+    }
+    
+    void EndProfile() {
+      ProfileEndTime = clock::now();
+      auto elasped = std::chrono::duration_cast<ns>(ProfileEndTime - ProfileStartTime).count();
+      WriteToBuffer(elasped);
+    }
+
+    template <typename Fn>
+    void Profile_it(Fn&& Method_lambda) {
+      StartProfile();
+      Method_lambda();
+      EndProfile();
+    }
+
+    void dump_buffer() {
+      std::cout << "Dumping Profile Buffer : " << ProfileName << '\n';
+      for (std::size_t i = 0; i < total_ticks_to_profile; ++i) {
+        double elasped_ms = std::chrono::duration<double, std::milli>(std::chrono::nanoseconds(ProfileTimeRingBuffer[i])).count();
+        std::cout << "Buffer " << i << " th = " << elasped_ms << " ms" << '\n';
+      }
+    }
+  };
+
+
+
+}
+
 int main() {
+
+  Profile::Timer Profile1("Calculating Alive Neighbours");
+  Profile::Timer Profile2("Applying conways game of life, rules");
 
   //std::uint32_t CAE_SEED = mgl::make_seed_xorshift32(); // mgl = my game library
   std::uint32_t CAE_SEED = 0;
@@ -795,7 +857,7 @@ int main() {
 
   sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Cellular Automata Engine (Runnig: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase");
   sf::Event event;
-  DisplayWindow.setFramerateLimit(8);
+  //DisplayWindow.setFramerateLimit(8);
 
   
   myecs::sparse_set<std::uint32_t, entity> cell_index_to_entity; // REFERRES TO PHYSICAL //  will have padding of one cell around the edges
@@ -834,8 +896,18 @@ int main() {
       cae::input::erase(DisplayWindow, cell_index_to_entity);
     }
     else if (!cae::input::is_paused() && DisplayWindow.hasFocus()){
-      cae::calculate_alive_neighbours(cell_index_to_entity);
-      conways_game_of_life(cell_index_to_entity);
+      Profile1.Profile_it(
+        [&]() {
+          cae::calculate_alive_neighbours(cell_index_to_entity);
+        }
+      );
+
+      Profile2.Profile_it(
+        [&]() {
+          conways_game_of_life(cell_index_to_entity);
+        }
+      );
+
     }
 
     cae::update_entities_VertexArray_state_only(cell_index_to_entity);
@@ -846,6 +918,9 @@ int main() {
     
     DisplayWindow.display();
   }
+
+  Profile1.dump_buffer();
+  Profile2.dump_buffer();
 
   return 0;
 }
