@@ -11,6 +11,7 @@
 #include <array>
 #include <chrono>
 #include <utility>
+#include <type_traits>
 #include "../dependencies/Custom_ECS/include/EntityComponentSystem.hpp"
 #include "../dependencies/RNG/include/random.hpp" // seed based random number generator - xorshift32
 #include <SFML/Graphics.hpp>
@@ -31,6 +32,17 @@ namespace cae { // Conways's Game of Life
   // what shoud we call the cells / the live or dead entities ? 
   // we are calling it entity/entities
   
+  // some static_cast shorthands
+  inline std::size_t szt(auto numeric) {
+    static_assert(std::is_integral<decltype(numeric)>::value, "type should be an integral");
+    return static_cast<std::size_t>(numeric);
+  }
+
+  inline std::int32_t int_c(auto numeric) {
+    static_assert(std::is_integral<decltype(numeric)>::value, "type should be an integral");
+    return static_cast<std::int32_t>(numeric);
+  }
+
   namespace grid_metadata {
     
     using namespace component::type;
@@ -70,29 +82,16 @@ namespace cae { // Conways's Game of Life
   // WORKINGS ARE ALWAYS DONE ON THE PHYSICAL GRID, as PHYSICAL GRID IS WHAT EXISTS IN ARRAY/MEMORY !!!
   // LOGICAL GRID IS JUST A LOGICAL MAPPING/(VIEW ONLY) ON TOP OF THE PHYSICAL GRID
   // LOGICAL GRID DOES NOT EXISTS IN THE MEMORY, ITS A SUBSET OF THE PHYSICAL GRID
+  //
+  // DEPRECATED : namespace grid_helper_p
+  /* 
   namespace grid_helper_p { // _p = physical, refers to the actual physical(in memory/array) grid 
     using namespace component::type;
-    PosPix_x grid_x_to_pixel__x(PosGrid_x physical_x) {
-      return PosPix_x{ physical_x.get() * cae::grid_metadata::CellWidth.get() };
-    }
-
-    PosPix_y grid_y_to_pixel__y(PosGrid_y physical_y) {
-      return PosPix_y{ physical_y.get() * cae::grid_metadata::CellHeight.get() };
-    }
-
-    PosGrid_x pixel_x_to_grid__x(std::int32_t x) {
-      return PosGrid_x{ x / cae::grid_metadata::CellWidth.get() };
-    }
-
-    PosGrid_y pixel_y_to_grid__y(std::int32_t y) {
-      return PosGrid_y{ y / cae::grid_metadata::CellHeight.get() };
-    }
-
     std::int32_t grid_xy_to_array_index(PosGrid_x physical_x, PosGrid_y physical_y) {
       return (physical_y.get() * cae::grid_metadata::Physical_GridWidth.get()) + physical_x.get();
     }
   }
-  
+  */
 
   // WORKINGS ARE ALWAYS DONE ON THE PHYSICAL GRID, as PHYSICAL GRID IS WHAT EXISTS IN ARRAY/MEMORY !!!
   // LOGICAL GRID IS JUST A LOGICAL MAPPING/(VIEW ONLY) ON TOP OF THE PHYSICAL GRID
@@ -100,17 +99,12 @@ namespace cae { // Conways's Game of Life
   // 
   // Input = logical | Output = physical
   // _lo = logical, refers to the entities DISPLAYED in the grid // NEVER RETURNS A LOGICAL CO-ORDINATE
+  
+  // DEPRECATED : namespace grid_helper_lo 
+  /* 
   namespace grid_helper_lo { 
     using namespace component::type;
-    /*
-    PosPix_x grid_x_to_pixel__x(PosGrid_x x) {
-      return PosPix_x{ x.get() * cae::grid_metadata::CellWidth.get() };
-    }
-
-    PosPix_y grid_y_to_pixel__y(PosGrid_y y) {
-      return PosPix_y{ y.get() * cae::grid_metadata::CellHeight.get() };
-    }
-    */
+    
     PosGrid_x pixel_x_to_grid__x(std::int32_t x) {
       return PosGrid_x{ x / cae::grid_metadata::CellWidth.get() };
     }
@@ -140,6 +134,54 @@ namespace cae { // Conways's Game of Life
     }
 
   }
+  */
+
+  namespace grid_convert {
+    
+    using namespace component::type;
+
+    inline PosGrid_x Pixel_x_to_Grid_x(std::int32_t pixel_x) {
+      return PosGrid_x{ pixel_x / cae::grid_metadata::CellWidth.get() };
+    }
+
+    inline PosGrid_y Pixel_y_to_Grid_y(std::int32_t pixel_y) {
+      return PosGrid_y{ pixel_y / cae::grid_metadata::CellHeight.get() };
+    }
+    
+    inline PosGrid_x Logical_x_to_Physical_x(PosGrid_x logical_x) {
+      return PosGrid_x{ logical_x.get() + cae::grid_metadata::padding };
+    }
+
+    inline PosGrid_y Logical_y_to_Physical_y(PosGrid_y logical_y) {
+      return PosGrid_y{ logical_y.get() + cae::grid_metadata::padding };
+    }
+    
+    inline PosGrid_x Physical_x_to_Logical_x(PosGrid_x physical_x) {
+      return PosGrid_x{ physical_x.get() - cae::grid_metadata::padding };
+    }
+    
+    inline PosGrid_y Physical_y_to_Logical_y(PosGrid_y physical_y) {
+      return PosGrid_y{ physical_y.get() - cae::grid_metadata::padding };
+    }
+    
+
+
+    inline std::size_t Physical_xy_to_index(PosGrid_x physical_x, PosGrid_y physical_y) {
+      return (szt(physical_y.get()) * szt(cae::grid_metadata::Physical_GridHeight.get())) + szt(physical_x.get());
+    }
+
+    inline std::size_t Logical_xy_to_index(PosGrid_x logical_x, PosGrid_y logical_y) {
+      const PosGrid_x physical_x{ Logical_x_to_Physical_x(logical_x) };
+      const PosGrid_y physical_y{ Logical_y_to_Physical_y(logical_y) };
+      return (szt(physical_y.get()) * szt(cae::grid_metadata::Physical_GridHeight.get())) + szt(physical_x.get());
+    }
+    
+    // for when i need the logical index for some reason
+    inline std::size_t Logical_xy_to_index_RETURN_LOGICAL(PosGrid_x logical_x, PosGrid_y logical_y) {
+      return (szt(logical_y.get()) * szt(cae::grid_metadata::Logical_GridHeight.get())) + szt(logical_x.get());
+    }
+
+  }
 
   struct Renderables {
     static inline sf::VertexArray entities_VertexArray;
@@ -148,9 +190,6 @@ namespace cae { // Conways's Game of Life
     static inline sf::Color entities_Color;
   };
   
-  int cae_true = 1;
-  int cae_false = 0;
-
   namespace grid_iterator::for_each {
   
     template <typename Fn>
@@ -163,7 +202,7 @@ namespace cae { // Conways's Game of Life
       for (PosGrid_y physical_y{ 0 }; physical_y.get() < physical_height.get(); physical_y.set(physical_y.get() + 1)) {
         for (PosGrid_x physical_x{ 0 }; physical_x.get() < physical_width.get(); physical_x.set(physical_x.get() + 1)) {
           
-          const std::size_t index = cae::grid_helper_p::grid_xy_to_array_index(physical_x, physical_y);
+          const std::size_t index = cae::grid_convert::Physical_xy_to_index(physical_x, physical_y);
           task(physical_x, physical_y, index); // perfectly forwaded lamda
 
         }
@@ -182,7 +221,7 @@ namespace cae { // Conways's Game of Life
       for (PosGrid_y logical_y{ 0 }; logical_y.get() < logical_height.get(); logical_y.set(logical_y.get() + 1)) {
         for (PosGrid_x logical_x{ 0 }; logical_x.get() < logical_width.get(); logical_x.set(logical_x.get() + 1)) {
               
-          const std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(logical_x, logical_y);
+          const std::size_t index = cae::grid_convert::Logical_xy_to_index(logical_x, logical_y);
           task(logical_x, logical_y, index);
         
         }
@@ -207,7 +246,7 @@ namespace cae { // Conways's Game of Life
       for (PosGrid_y current_y{ start_y }; current_y.get() < end_y.get(); current_y.set(current_y.get() + 1)) {
         for (PosGrid_x current_x{ start_x }; current_x.get() < end_x.get(); current_x.set(current_x.get() + 1)) {
 
-          const std::size_t index = cae::grid_helper_p::grid_xy_to_array_index(current_x, current_y);
+          const std::size_t index = cae::grid_convert::Physical_xy_to_index(current_x, current_y);
           task(current_x, current_y, index); // perfectly forwaded lamda
 
         }
@@ -390,7 +429,7 @@ namespace cae { // Conways's Game of Life
       [&](auto logical_x, auto logical_y, std::size_t index) {
         
         // logical index for accessing vertex arrays
-        const std::size_t logical_i = cae::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
+        const std::size_t logical_i = cae::grid_convert::Logical_xy_to_index_RETURN_LOGICAL(logical_x, logical_y);
         
         const std::int32_t x_pix = ecs_access(comp::position, cell_index_to_entity.at(index), x).get();
         const std::int32_t y_pix = ecs_access(comp::position, cell_index_to_entity.at(index), y).get();
@@ -445,7 +484,7 @@ namespace cae { // Conways's Game of Life
     for_each::logical_cell(
       [&](auto logical_x, auto logical_y, std::size_t index) {
 
-        const std::size_t logical_i = cae::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(logical_x, logical_y);
+        const std::size_t logical_i = cae::grid_convert::Logical_xy_to_index_RETURN_LOGICAL(logical_x, logical_y);
 
         const auto current_alive = ecs_access(comp::alive, cell_index_to_entity.at(index), value).get();
 
@@ -597,12 +636,12 @@ namespace cae { // Conways's Game of Life
     const component::type::PosGrid_y logical_y) { // takes logical index
     using namespace component::type;
 
-    const std::size_t center_cell_index = cae::grid_helper_lo::grid_xy_to_array_index(logical_x, logical_y);
+    const std::size_t center_cell_index = cae::grid_convert::Logical_xy_to_index(logical_x, logical_y);
 
     const std::int32_t TopmostLeft_offset = cae::grid_metadata::padding;
 
-    const PosGrid_x physical_neighbour_TopmostLeft_x{ grid_helper_lo::grid_xLogical_to_grid_xPhysical(logical_x).get() - TopmostLeft_offset };
-    const PosGrid_y physical_neighbour_TopmostLeft_y{ grid_helper_lo::grid_yLogical_to_grid_yPhysical(logical_y).get() - TopmostLeft_offset };
+    const PosGrid_x physical_neighbour_TopmostLeft_x{ grid_convert::Logical_x_to_Physical_x(logical_x).get() - TopmostLeft_offset };
+    const PosGrid_y physical_neighbour_TopmostLeft_y{ grid_convert::Logical_y_to_Physical_y(logical_y).get() - TopmostLeft_offset };
 
     const PosGrid_x start_x{ physical_neighbour_TopmostLeft_x };
     const PosGrid_y start_y{ physical_neighbour_TopmostLeft_y };
@@ -654,7 +693,7 @@ namespace cae { // Conways's Game of Life
 
       [&](auto x, auto y, std::size_t index) {
         
-        const std::size_t logical_index = cae::grid_helper_lo::grid_xy_to_array_index_RETURN_LOGICAL(x, y);
+        const std::size_t logical_index = cae::grid_convert::Logical_xy_to_index_RETURN_LOGICAL(x, y);
         
         std::cout << "cell " << logical_index << " total neighbours : "
           << ecs_access(comp::neighbour, cell_index_to_entity.at(index), count)
@@ -728,10 +767,10 @@ namespace cae::input {
     PosPix_y mouse_y{ mousepos.y };
 
     // view cordinates // is never physical
-    PosGrid_x mouse_grid_x{ cae::grid_helper_lo::pixel_x_to_grid__x(mouse_x.get()) };
-    PosGrid_y mouse_grid_y{ cae::grid_helper_lo::pixel_y_to_grid__y(mouse_y.get()) };
+    PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
+    PosGrid_y mouse_grid_y{ cae::grid_convert::Pixel_y_to_Grid_y(mouse_y.get()) };
 
-    std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(mouse_grid_x, mouse_grid_y);
+    std::size_t index = cae::grid_convert::Logical_xy_to_index(mouse_grid_x, mouse_grid_y);
     /*
     if (!window.hasFocus()) {
       std::cout << "\nCancelled Draw, Window out of focus\n";
@@ -750,10 +789,10 @@ namespace cae::input {
     PosPix_y mouse_y{ mousepos.y };
 
     // view cordinates // is never physical
-    PosGrid_x mouse_grid_x{ cae::grid_helper_lo::pixel_x_to_grid__x(mouse_x.get()) };
-    PosGrid_y mouse_grid_y{ cae::grid_helper_lo::pixel_y_to_grid__y(mouse_y.get()) };
+    PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
+    PosGrid_y mouse_grid_y{ cae::grid_convert::Pixel_y_to_Grid_y(mouse_y.get()) };
 
-    std::size_t index = cae::grid_helper_lo::grid_xy_to_array_index(mouse_grid_x, mouse_grid_y);
+    std::size_t index = cae::grid_convert::Logical_xy_to_index(mouse_grid_x, mouse_grid_y);
     /*
     if (!window.hasFocus()) {
       std::cout << "\nCancelled Erase, Window out of focus\n";
