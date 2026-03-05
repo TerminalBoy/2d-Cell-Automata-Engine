@@ -216,6 +216,45 @@ namespace myecs {
       return dense[index_at_key[key]];
     }
 
+    void modify(number_key key, link new_data) {
+      assert(contains(key) && "key does not exist or is deleted");
+      assert(validate() && "Invariant of index_at_key[key_at_index[i]] == i is broken");
+      dense[index_at_key[key]] = new_data;
+    }
+  };
+
+  template <typename Part1, typename Part2>
+  struct pair_container { // simple container for storing pairs... only for testing and development use, not for production use
+  private:
+    std::vector<Part1> part_one_array;
+    std::vector<Part2> part_two_array;
+
+  public:
+    void make_pair(Part1 part_one, Part2 part_two) {
+      part_one_array.push_back(part_one);
+      part_two_array.push_back(part_two);
+    }
+
+    Part1 part_one(std::size_t index) {
+      assert(index < part_one_array.size() && "Index Out of Bounds part_one_array");
+      return part_one_array[index];
+    }
+
+    Part2 part_two(std::size_t index) {
+      assert(index < part_two_array.size() && "Index Out of Bounds part_two_array");
+      return part_two_array[index];
+    }
+
+    void edit_part_one(std::size_t index, Part1 new_data) {
+      assert(index < part_one_array.size() && "Index Out of Bounds part_one_array");
+      part_one_array[index] = new_data;
+    }
+
+    void edit_part_two(std::size_t index, Part1 new_data) {
+      assert(index < part_two_array.size() && "Index Out of Bounds part_two_array");
+      part_two_array[index] = new_data;
+    }
+
   };
 
 }

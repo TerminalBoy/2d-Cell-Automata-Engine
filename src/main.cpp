@@ -43,6 +43,73 @@ namespace cae { // Conways's Game of Life
     return static_cast<std::int32_t>(numeric);
   }
 
+  namespace multithreading_metadata{
+    using namespace component::type;
+
+    std::int32_t total_hardware_threads = std::thread::hardware_concurrency();
+    std::int32_t usable_threads = std::max(1, total_hardware_threads - 1);
+    myecs::pair_container<std::size_t, std::size_t> logical_work_grid_range;
+    myecs::pair_container<std::size_t, std::size_t> physical_work_grid_range;
+
+    std::vector<std::thread> worker_threads(usable_threads);
+
+    bool physical_cell_working = false;
+    bool logical_cell_working = false;
+
+   
+  }
+
+  namespace multithreading {
+
+    void create_thread_pool();
+
+    void init_logical_work_multithreading(){
+      //first we will need to divide the grid into n no. of threads
+      // by having start points and end points with half open ranges (endpoint excluded)
+      std::size_t part_segment_size = cae::grid_metadata::total_logical / cae::multithreading_metadata::total_hardware_threads;
+      std::size_t start_point;
+      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
+        start_point = i * part_segment_size;
+        multithreading_metadata::logical_work_grid_range.make_pair(start_point, part_segment_size);
+      }
+      multithreading_metadata::logical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
+                                                                     cae::grid_metadata::total_logical - start_point);
+    }
+
+    void init_physical_work_multithreading() {
+      //first we will need to divide the grid into n no. of threads
+      // by having start points and end points with half open ranges (endpoint excluded)
+      std::size_t part_segment_size = cae::grid_metadata::total_physical / cae::multithreading_metadata::total_hardware_threads;
+      std::size_t start_point;
+      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
+        start_point = i * part_segment_size;
+        multithreading_metadata::physical_work_grid_range.make_pair(start_point, part_segment_size);
+      }
+      multithreading_metadata::physical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
+                                                                      cae::grid_metadata::total_physical - start_point);
+    }
+
+    void init_multithreading() {
+      init_logical_work_multithreading();
+      init_physical_work_multithreading();
+    }
+
+
+    void physical_cell_iteration(std::size_t start_index, std::size_t size) {
+      while (true) {
+        if (cae::multithreading_metadata::physical_cell_working) {
+
+        }
+      }
+    }
+
+    void create_thread_pool() {
+      for (std::size_t i = 0; i < cae::multithreading_metadata::usable_threads; ++i) {
+        cae::multithreading_metadata::worker_threads[i] = 
+      }
+    }
+  }
+
   namespace grid_metadata {
     
     using namespace component::type;
@@ -312,6 +379,11 @@ namespace cae { // Conways's Game of Life
         task_lambda_ARGS_x_y_index
       );
 
+    }
+
+    template <typename Fn>
+    void physical_cell_mlt(Fn&& task_lambda_ARGS_x_y_index) {
+      cae::multithreading_metadata::physical_cell_working = true;
     }
 
   }
