@@ -43,72 +43,7 @@ namespace cae { // Conways's Game of Life
     return static_cast<std::int32_t>(numeric);
   }
 
-  namespace multithreading_metadata{
-    using namespace component::type;
-
-    std::int32_t total_hardware_threads = std::thread::hardware_concurrency();
-    std::int32_t usable_threads = std::max(1, total_hardware_threads - 1);
-    myecs::pair_container<std::size_t, std::size_t> logical_work_grid_range;
-    myecs::pair_container<std::size_t, std::size_t> physical_work_grid_range;
-
-    std::vector<std::thread> worker_threads(usable_threads);
-
-    bool physical_cell_working = false;
-    bool logical_cell_working = false;
-
-   
-  }
-
-  namespace multithreading {
-
-    void create_thread_pool();
-
-    void init_logical_work_multithreading(){
-      //first we will need to divide the grid into n no. of threads
-      // by having start points and end points with half open ranges (endpoint excluded)
-      std::size_t part_segment_size = cae::grid_metadata::total_logical / cae::multithreading_metadata::total_hardware_threads;
-      std::size_t start_point;
-      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
-        start_point = i * part_segment_size;
-        multithreading_metadata::logical_work_grid_range.make_pair(start_point, part_segment_size);
-      }
-      multithreading_metadata::logical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
-                                                                     cae::grid_metadata::total_logical - start_point);
-    }
-
-    void init_physical_work_multithreading() {
-      //first we will need to divide the grid into n no. of threads
-      // by having start points and end points with half open ranges (endpoint excluded)
-      std::size_t part_segment_size = cae::grid_metadata::total_physical / cae::multithreading_metadata::total_hardware_threads;
-      std::size_t start_point;
-      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
-        start_point = i * part_segment_size;
-        multithreading_metadata::physical_work_grid_range.make_pair(start_point, part_segment_size);
-      }
-      multithreading_metadata::physical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
-                                                                      cae::grid_metadata::total_physical - start_point);
-    }
-
-    void init_multithreading() {
-      init_logical_work_multithreading();
-      init_physical_work_multithreading();
-    }
-
-
-    void physical_cell_iteration(std::size_t start_index, std::size_t size) {
-      while (true) {
-        if (cae::multithreading_metadata::physical_cell_working) {
-
-        }
-      }
-    }
-
-    void create_thread_pool() {
-      for (std::size_t i = 0; i < cae::multithreading_metadata::usable_threads; ++i) {
-        cae::multithreading_metadata::worker_threads[i] = 
-      }
-    }
-  }
+  
 
   namespace grid_metadata {
     
@@ -248,6 +183,145 @@ namespace cae { // Conways's Game of Life
       return (szt(logical_y.get()) * szt(cae::grid_metadata::Logical_GridHeight.get())) + szt(logical_x.get());
     }
 
+    inline PosGrid_x Logical_index_to_Logical_x(std::size_t logical_index) {
+      PosGrid_x logical_x{ static_cast<std::int32_t>(logical_index % cae::grid_metadata::Logical_GridWidth.get()) };
+      return logical_x;
+    }
+
+    inline PosGrid_y Logical_index_to_Logical_y(std::size_t logical_index) {
+      PosGrid_y logical_y{ static_cast<std::int32_t>(logical_index / cae::grid_metadata::Logical_GridWidth.get()) };
+      return logical_y;
+    }
+
+    inline PosGrid_x Physical_index_to_Physical_x(std::size_t physical_index) {
+      PosGrid_x physical_x{ static_cast<std::int32_t>(physical_index % cae::grid_metadata::Physical_GridWidth.get()) };
+      return physical_x;
+    }
+
+    inline PosGrid_y Physical_index_to_Physical_y(std::size_t physical_index) {
+      PosGrid_y physical_y{ static_cast<std::int32_t>(physical_index / cae::grid_metadata::Physical_GridWidth.get()) };
+      return physical_y;
+    }
+
+    inline std::size_t Logical_index_to_Physical_index(std::size_t logical_index) {
+      // first we will retrive the logical_x and logical_y from the Logical_index provided
+      const PosGrid_x logical_x{ Logical_index_to_Logical_x(logical_index) };
+      const PosGrid_y logical_y{ Logical_index_to_Logical_y(logical_index) };
+
+      // now we need to convert the logical xy to physical xy then to physical index
+      const PosGrid_x physical_x{ Logical_x_to_Physical_x(logical_x) };
+      const PosGrid_y physical_y{ Logical_y_to_Physical_y(logical_y) };
+
+      const std::size_t physical_index = Physical_xy_to_index(physical_x, physical_y);
+        
+      return physical_index;
+    }
+
+    inline std::size_t Physical_index_to_Logical_index(std::size_t physical_index) {
+      const PosGrid_x physical_x{ Physical_index_to_Physical_x(physical_index) };
+      const PosGrid_y physical_y{ Physical_index_to_Physical_y(physical_index) };
+
+      const PosGrid_x logical_x{ Physical_x_to_Logical_x(physical_x) };
+      const PosGrid_y logical_y{ Physical_y_to_Logical_y(physical_y) };
+
+      const std::size_t logical_index = Logical_xy_to_index_RETURN_LOGICAL(logical_x, logical_y);
+      
+      return logical_index;
+    }
+
+    inline PosGrid_x Physical_index_to_Logical_x(std::size_t physical_index) {
+      const PosGrid_x physical_x{ Physical_index_to_Physical_x(physical_index) };
+      const PosGrid_x logical_x{ Physical_x_to_Logical_x(physical_x) };
+      return logical_x;
+    }
+
+    inline PosGrid_y Physical_index_to_Logical_y(std::size_t physical_index) {
+      const PosGrid_y physical_y{ Physical_index_to_Physical_y(physical_index) };
+      const PosGrid_y logical_y{ Physical_y_to_Logical_y(physical_y) };
+      return logical_y;
+    }
+
+  }
+
+  namespace multithreading_metadata {
+    using namespace component::type;
+
+    std::int32_t total_hardware_threads = std::thread::hardware_concurrency();
+    std::int32_t usable_threads = std::max(1, total_hardware_threads - 1);
+    myecs::pair_container<std::size_t, std::size_t> logical_work_grid_range; // in physical index
+    myecs::pair_container<std::size_t, std::size_t> physical_work_grid_range; // in physical index
+
+    std::vector<std::thread> worker_threads(usable_threads);
+
+    std::atomic<bool> physical_cell_working = false;
+    std::atomic<bool> logical_cell_working = false;
+
+    struct worker_job {
+      void (*func)(void*, std::size_t /*thread_instance*/);
+      void* data;
+    };
+
+    inline worker_job current_job;
+  }
+
+  namespace multithreading {
+
+    void create_thread_pool();
+
+    void init_logical_work_multithreading() {
+      //first we will need to divide the grid into n no. of threads
+      // by having start points and end points with half open ranges (endpoint excluded)
+      std::size_t part_segment_size = cae::grid_metadata::total_logical / cae::multithreading_metadata::total_hardware_threads;
+      std::size_t start_point;
+      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
+        start_point = i * part_segment_size;
+        const std::size_t real_physical_index = cae::grid_convert::Logical_index_to_Physical_index(start_point);
+        multithreading_metadata::logical_work_grid_range.make_pair(real_physical_index, part_segment_size);
+      }
+      multithreading_metadata::logical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
+        cae::grid_metadata::total_logical - start_point);
+    }
+
+    void init_physical_work_multithreading() {
+      //first we will need to divide the grid into n no. of threads
+      // by having start points and end points with half open ranges (endpoint excluded)
+      std::size_t part_segment_size = cae::grid_metadata::total_physical / cae::multithreading_metadata::total_hardware_threads;
+      std::size_t start_point;
+      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
+        start_point = i * part_segment_size;
+        const std::size_t real_physical_index = start_point;
+        multithreading_metadata::physical_work_grid_range.make_pair(real_physical_index, part_segment_size);
+      }
+      multithreading_metadata::physical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
+        cae::grid_metadata::total_physical - start_point);
+    }
+
+    void init_multithreading() {
+      init_logical_work_multithreading();
+      init_physical_work_multithreading();
+    }
+
+    void mutithreaded_grid_iteration_busy_wait_loop(std::size_t thread_instance /*chunk part to work on irrespective of logical or phyiscal grid modes*/) {
+      while (true) {
+        if (cae::multithreading_metadata::logical_cell_working) {
+
+          cae::multithreading_metadata::current_job.func(
+            cae::multithreading_metadata::current_job.data,
+            thread_instance
+          );
+
+        }
+      }
+    }
+
+    void create_thread_pool() {
+      for (std::size_t i = 1; i < cae::multithreading_metadata::total_hardware_threads; ++i) {
+        const std::size_t current_thread_index = i - 1;
+        cae::multithreading_metadata::worker_threads[current_thread_index] = std::thread(
+          mutithreaded_grid_iteration_busy_wait_loop, i /*thread instatnce starting from 1 because main thread will also participate*/
+        );
+      }
+    }
   }
 
   struct Renderables {
@@ -258,7 +332,7 @@ namespace cae { // Conways's Game of Life
   };
   
   namespace grid_iterator::for_each {
-  
+
     template <typename Fn>
     void physical_cell(Fn&& task) { //
       using namespace component::type;
@@ -382,12 +456,53 @@ namespace cae { // Conways's Game of Life
     }
 
     template <typename Fn>
-    void physical_cell_mlt(Fn&& task_lambda_ARGS_x_y_index) {
-      cae::multithreading_metadata::physical_cell_working = true;
+    void logical_cell_MAIN_THREAD_ONLY(Fn&& task_lambda_ARGS_x_y_index) {
+      const std::size_t start_index = cae::multithreading_metadata::logical_work_grid_range.part_one(0);
+      const std::size_t size = cae::multithreading_metadata::logical_work_grid_range.part_two(0);
+
+      for (std::size_t index{ start_index }; index < (start_index + size); ++index) {
+        const component::type::PosGrid_x logical_x{ cae::grid_convert::Physical_index_to_Logical_x(index) };
+        const component::type::PosGrid_y logical_y{ cae::grid_convert::Physical_index_to_Logical_y(index) };
+        task_lambda_ARGS_x_y_index(logical_x, logical_y, index);
+      }
+
+    }
+
+
+    template <typename Fn>
+    void logical_cell_mlt(Fn&& task_lambda_ARGS_x_y_index) {
+
+      struct TASK_CONCRETE_TYPE {
+        Fn task_lambda;
+      };
+
+      static TASK_CONCRETE_TYPE task_lambda_storage{ std::forward<Fn>(task_lambda_ARGS_x_y_index) };
+      
+      cae::multithreading_metadata::current_job.data = &task_lambda_storage;
+      cae::multithreading_metadata::current_job.func =
+      [](void* lambda_object_ptr, std::size_t thread_instance) {
+
+        TASK_CONCRETE_TYPE* t = static_cast<TASK_CONCRETE_TYPE*>(lambda_object_ptr);
+
+        const std::size_t start_index = cae::multithreading_metadata::logical_work_grid_range.part_one(thread_instance);
+        const std::size_t size = cae::multithreading_metadata::logical_work_grid_range.part_two(thread_instance);
+
+        for (std::size_t index{ start_index }; index < (start_index + size); ++index) {
+          const component::type::PosGrid_x logical_x{ cae::grid_convert::Physical_index_to_Logical_x(index) };
+          const component::type::PosGrid_y logical_y{ cae::grid_convert::Physical_index_to_Logical_y(index) };
+          t->task_lambda(logical_x, logical_y, index);
+        }
+      };
+
+      cae::multithreading_metadata::logical_cell_working = true;
+      cae::grid_iterator::for_each::logical_cell_MAIN_THREAD_ONLY(std::forward<Fn>(task_lambda_ARGS_x_y_index));
+
     }
 
   }
   
+  
+
   // user api
   void init_grid(std::int32_t grid_width, std::int32_t grid_height, std::int32_t cell_width, std::int32_t cell_height, 
                  std::int32_t grid_padding = 1) { // the dimentions you want
