@@ -256,7 +256,13 @@ namespace cae { // Conways's Game of Life
     std::atomic<bool> physical_cell_working = false;
     std::atomic<bool> logical_cell_working = false;
     std::atomic<int> workers_finished = 0;
-    std::vector<std::atomic<std::uint64_t>> per_thread_job_epoch(usable_threads);
+
+    struct alignas(64) Cache_Aligned_Thread_Epoch {
+      std::atomic<std::uint64_t> thread_job_epoch{0};
+    };
+
+
+    std::vector<Cache_Aligned_Thread_Epoch> per_thread_job_epoch(usable_threads);
 
     struct worker_job {
       void (*func)(void*, std::size_t /*thread_instance*/);
@@ -304,14 +310,14 @@ namespace cae { // Conways's Game of Life
 
     void mutithreaded_grid_iteration_busy_wait_loop(const std::size_t thread_work_instance /*chunk part to work on irrespective of logical or phyiscal grid modes*/) {
       while (true) {
-        if (cae::multithreading_metadata::logical_cell_working && cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance] == 0) {
+        if (cae::multithreading_metadata::logical_cell_working && cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch == 0) {
 
           cae::multithreading_metadata::current_job.func(
             cae::multithreading_metadata::current_job.data,
             thread_work_instance
           );
 
-          cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance]++;
+          cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch++;
           cae::multithreading_metadata::workers_finished++;
           
         }
@@ -341,7 +347,7 @@ namespace cae { // Conways's Game of Life
 
     void reset_per_thread_job_epoch() {
       for (std::size_t i = 0; i < cae::multithreading_metadata::usable_threads; ++i) {
-        cae::multithreading_metadata::per_thread_job_epoch[i] = 0;
+        cae::multithreading_metadata::per_thread_job_epoch[i].thread_job_epoch = 0;
       }
     }
   }
