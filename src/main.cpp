@@ -276,6 +276,15 @@ namespace cae { // Conways's Game of Life
 
   namespace multithreading {
 
+    template <typename Fn>
+    void for_each_participating_thread(Fn&& task_lambda_ARGS_index) {
+      std::size_t total_participating_threads = cae::multithreading_metadata::usable_threads + 1; // + 1 as main thread also participates
+      
+      for (std::size_t thread_index{0}; thread_index < total_participating_threads; ++thread_index) {
+        task_lambda_ARGS_index(thread_index);
+      }
+    }
+
     void create_thread_pool();
 
     void init_logical_work_multithreading() {
@@ -532,6 +541,25 @@ namespace cae { // Conways's Game of Life
       cae::multithreading::reset_per_thread_job_epoch();
     }
 
+    template <typename Fn>
+    void logical_cell_at_segment(std::size_t segment_instance, Fn&& task_lambda_ARGS_x_y_index) {
+      using namespace component::type;
+
+      std::size_t physical_index = cae::multithreading_metadata::logical_work_grid_range.part_one(segment_instance);
+      std::size_t size = cae::multithreading_metadata::logical_work_grid_range.part_two(segment_instance);
+      std::size_t end = physical_index + size;
+
+      for (physical_index; physical_index < end; ++physical_index) {
+        const std::size_t logical_i = cae::grid_convert::Physical_index_to_Logical_index(physical_index);
+        const PosGrid_x logical_x = cae::grid_convert::Logical_index_to_Logical_x(logical_i);
+        const PosGrid_y logical_y = cae::grid_convert::Logical_index_to_Logical_y(logical_i);
+
+        task_lambda_ARGS_x_y_index(logical_x, logical_y, physical_index); // index is always considered to be physical unless explicitly defined
+
+      }
+
+    }
+    
   }
   
   
@@ -892,7 +920,7 @@ namespace cae { // Conways's Game of Life
   void calculate_alive_neighbours(const myecs::sparse_set<key, link>& cell_index_to_entity) {
     using namespace cae::grid_iterator;
 
-    for_each::logical_cell_mlt(
+    for_each::logical_cell(
       [&](auto logical_x, auto logical_y, std::size_t index) {
         ecs_access(comp::neighbour, cell_index_to_entity.at(index), count) =
           nth_cell_alive_neighbours(
@@ -923,6 +951,43 @@ namespace cae { // Conways's Game of Life
     );
   }
 
+  void visualize_logical_grid_segmentation() {
+    using namespace component::type;
+    
+    std::vector<sf::Color> colors{
+      sf::Color::Blue,
+      sf::Color::Green,
+      sf::Color::Magenta,
+      sf::Color::Cyan
+    };
+
+    cae::multithreading::for_each_participating_thread(
+      [&](std::size_t segment_index) {
+      
+
+        cae::grid_iterator::for_each::logical_cell_at_segment(segment_index,
+          [&](PosGrid_x logical_x, PosGrid_y logical_y, std::size_t index) {
+            
+            //const auto logical_i = cae::grid_convert::Physical_index_to_Logical_index(index);
+            const auto logical_i = cae::grid_convert::Logical_xy_to_index_RETURN_LOGICAL(logical_x, logical_y);
+              // faster than cae::grid_convert::Physical_index_to_Logical_index();
+
+            const std::size_t base = logical_i * 4;
+            sf::Color current_color = colors[segment_index % colors.size()];
+
+            Renderables::entities_VertexArray[base + 0].color = current_color;
+            Renderables::entities_VertexArray[base + 1].color = current_color;
+            Renderables::entities_VertexArray[base + 2].color = current_color;
+            Renderables::entities_VertexArray[base + 3].color = current_color;
+
+          }
+        );
+
+      
+      }
+    );
+    
+  }
   
 
   namespace rulebook {
@@ -1137,7 +1202,7 @@ int main() {
 
   cae::init_border_VertexArray();
   
-  cae::multithreading::init_multithreading();
+  //cae::multithreading::init_multithreading();
   //cae::calculate_alive_neighbours(cell_index_to_entity);
   //cae::print_everycell_neighbour_count(cell_index_to_entity);
 
@@ -1168,7 +1233,8 @@ int main() {
 
     }
 
-    cae::update_entities_VertexArray_state_only(cell_index_to_entity);
+    //cae::update_entities_VertexArray_state_only(cell_index_to_entity);
+    cae::visualize_logical_grid_segmentation();
     DisplayWindow.clear(sf::Color::Black);
     DisplayWindow.draw(cae::Renderables::entities_VertexArray);
     DisplayWindow.draw(cae::Renderables::border_horizontal);
@@ -1177,7 +1243,7 @@ int main() {
     DisplayWindow.display();
   }
 
-  cae::multithreading::join_all_workers();
+  //cae::multithreading::join_all_workers();
 
   Profile1.dump_buffer();
   Profile2.dump_buffer();
