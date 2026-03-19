@@ -4,6 +4,7 @@
 //                                                            ~ Probably Me
 //
 //
+
 #include <cstddef>
 #include <iostream>
 #include <stdio.h>
@@ -12,6 +13,7 @@
 #include <chrono>
 #include <utility>
 #include <type_traits>
+#include <immintrin.h>
 #include "../dependencies/Custom_ECS/include/EntityComponentSystem.hpp"
 #include "../dependencies/RNG/include/random.hpp" // seed based random number generator - xorshift32
 #include <SFML/Graphics.hpp>
@@ -86,57 +88,8 @@ namespace cae { // Conways's Game of Life
   // LOGICAL GRID DOES NOT EXISTS IN THE MEMORY, ITS A SUBSET OF THE PHYSICAL GRID
   //
   // DEPRECATED : namespace grid_helper_p
-  /* 
-  namespace grid_helper_p { // _p = physical, refers to the actual physical(in memory/array) grid 
-    using namespace component::type;
-    std::int32_t grid_xy_to_array_index(PosGrid_x physical_x, PosGrid_y physical_y) {
-      return (physical_y.get() * cae::grid_metadata::Physical_GridWidth.get()) + physical_x.get();
-    }
-  }
-  */
-
-  // WORKINGS ARE ALWAYS DONE ON THE PHYSICAL GRID, as PHYSICAL GRID IS WHAT EXISTS IN ARRAY/MEMORY !!!
-  // LOGICAL GRID IS JUST A LOGICAL MAPPING/(VIEW ONLY) ON TOP OF THE PHYSICAL GRID
-  // LOGICAL GRID DOES NOT EXISTS IN THE MEMORY, ITS A SUBSET OF THE PHYSICAL GRID
-  // 
-  // Input = logical | Output = physical
-  // _lo = logical, refers to the entities DISPLAYED in the grid // NEVER RETURNS A LOGICAL CO-ORDINATE
   
-  // DEPRECATED : namespace grid_helper_lo 
-  /* 
-  namespace grid_helper_lo { 
-    using namespace component::type;
-    
-    PosGrid_x pixel_x_to_grid__x(std::int32_t x) {
-      return PosGrid_x{ x / cae::grid_metadata::CellWidth.get() };
-    }
 
-    PosGrid_y pixel_y_to_grid__y(std::int32_t y) {
-      return PosGrid_y{ y / cae::grid_metadata::CellHeight.get() };
-    }
-    
-
-    std::size_t grid_xy_to_array_index(PosGrid_x logical_x, PosGrid_y logical_y) { // returns a physical index from logical co-ordinates
-      logical_x.set(logical_x.get() + cae::grid_metadata::padding); // increment both by the padding to convert to physical cords
-      logical_y.set(logical_y.get() + cae::grid_metadata::padding);
-      return cae::grid_helper_p::grid_xy_to_array_index(logical_x, logical_y);
-    }
-
-    // THIS RETURNS A LOGICAL INDEX FROM LOGICAL CORDS
-    std::size_t grid_xy_to_array_index_RETURN_LOGICAL(PosGrid_x logical_x, PosGrid_y logical_y) { // returns a physical index from logical co-ordinates
-      return ( logical_y.get() * cae::grid_metadata::Logical_GridWidth.get() ) + logical_x.get();
-    }
-    
-    PosGrid_x grid_xLogical_to_grid_xPhysical(PosGrid_x logical_x) {
-      return PosGrid_x{ logical_x.get() + cae::grid_metadata::padding };
-    }
-  
-    PosGrid_y grid_yLogical_to_grid_yPhysical(PosGrid_y logical_y) {
-      return PosGrid_y{ logical_y.get() + cae::grid_metadata::padding };
-    }
-
-  }
-  */
 
   namespace grid_convert {
     
@@ -248,7 +201,7 @@ namespace cae { // Conways's Game of Life
 
     std::int32_t total_hardware_threads = std::thread::hardware_concurrency();
     std::int32_t usable_threads = std::max(1, total_hardware_threads - 1);
-    myecs::pair_container<std::size_t, std::size_t> logical_work_grid_range; // in physical index
+    myecs::pair_container<std::size_t, std::size_t> logical_work_grid_range; // in logical index
     myecs::pair_container<std::size_t, std::size_t> physical_work_grid_range; // in physical index
 
     std::vector<std::thread> worker_threads(usable_threads);
@@ -285,39 +238,68 @@ namespace cae { // Conways's Game of Life
       }
     }
 
-    void create_thread_pool();
+    
 
     void init_logical_work_multithreading() {
       //first we will need to divide the grid into n no. of threads
       // by having start points and end points with half open ranges (endpoint excluded)
-      std::size_t part_segment_size = cae::grid_metadata::total_logical / cae::multithreading_metadata::total_hardware_threads;
-      std::size_t start_point = 0;
-      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
-        start_point = i * part_segment_size;
-        const std::size_t real_physical_index = cae::grid_convert::Logical_index_to_Physical_index(start_point);
-        multithreading_metadata::logical_work_grid_range.make_pair(real_physical_index, part_segment_size);
-      }
-      multithreading_metadata::logical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
-        cae::grid_metadata::total_logical - start_point);
+      std::size_t N_total_logical_cells = cae::grid_metadata::total_logical;
+      std::size_t T_total_working_threads = cae::multithreading_metadata::usable_threads + 1; // +1 for main thread 
+      
+      for_each_participating_thread(
+        [&](std::size_t segment_index) {
+
+          // formula derived for dividing the grid
+          // 
+          // start_index = (t * N) / T
+          // end_index = ((t + 1) * N) / T
+          // 
+          // whereas t = the segment index
+          //         N = total number of cells
+          //         T = total participating threads / segments to be made
+
+          std::size_t logical_start_index = (segment_index * N_total_logical_cells) / T_total_working_threads;
+          std::size_t logical_end_index = ((segment_index + 1) * N_total_logical_cells) / T_total_working_threads;
+          std::size_t segment_size = logical_end_index - logical_start_index;
+
+          cae::multithreading_metadata::logical_work_grid_range.make_pair(logical_start_index, segment_size);
+
+        }
+      );
     }
 
-    void init_physical_work_multithreading() {
+    void init_physical_work_multithreading() { 
       //first we will need to divide the grid into n no. of threads
       // by having start points and end points with half open ranges (endpoint excluded)
-      std::size_t part_segment_size = cae::grid_metadata::total_physical / cae::multithreading_metadata::total_hardware_threads;
-      std::size_t start_point = 0;
-      for (std::size_t i = 0; i < multithreading_metadata::total_hardware_threads; ++i) {
-        start_point = i * part_segment_size;
-        const std::size_t real_physical_index = start_point;
-        multithreading_metadata::physical_work_grid_range.make_pair(real_physical_index, part_segment_size);
-      }
-      multithreading_metadata::physical_work_grid_range.edit_part_two(multithreading_metadata::total_hardware_threads - 1,
-        cae::grid_metadata::total_physical - start_point);
+      std::size_t N_total_physical_cells = cae::grid_metadata::total_physical;
+      std::size_t T_total_working_threads = cae::multithreading_metadata::usable_threads + 1; // +1 for main thread 
+
+      for_each_participating_thread(
+        [&](std::size_t segment_index) {
+
+          // formula derived for dividing the grid
+          // 
+          // start_index = (t * N) / T
+          // end_index = ((t + 1) * N) / T
+          // 
+          // whereas t = the segment index
+          //         N = total number of cells
+          //         T = total participating threads / segments to be made
+
+          std::size_t physical_start_index = (segment_index * N_total_physical_cells) / T_total_working_threads;
+          std::size_t physical_end_index = ((segment_index + 1) * N_total_physical_cells) / T_total_working_threads;
+          std::size_t segment_size = physical_end_index - physical_start_index;
+
+          cae::multithreading_metadata::physical_work_grid_range.make_pair(physical_start_index, segment_size);
+
+        }
+      );
     }
 
     
 
     void mutithreaded_grid_iteration_busy_wait_loop(const std::size_t thread_work_instance /*chunk part to work on irrespective of logical or phyiscal grid modes*/) {
+      std::size_t spin{ 0 };
       while (true) {
         if (cae::multithreading_metadata::logical_cell_working && cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch == 0) {
 
@@ -328,7 +310,21 @@ namespace cae { // Conways's Game of Life
 
           cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch++;
           cae::multithreading_metadata::workers_finished++;
-          
+          spin = 0;
+        }
+        else {
+
+          spin++;
+          if (spin < 200) {
+            _mm_pause();
+          }
+          else if (spin < 400) {
+            std::this_thread::yield();
+          } 
+          else {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(50));
+          }
+
         }
       }
     }
@@ -395,13 +391,18 @@ namespace cae { // Conways's Game of Life
       const WidthGrid logical_width{ cae::grid_metadata::Logical_GridWidth };
       const HeightGrid logical_height{ cae::grid_metadata::Logical_GridHeight };
 
+      PosGrid_y logical_y{ 0 };
+      PosGrid_x logical_x{ 0 };
 
-      for (PosGrid_y logical_y{ 0 }; logical_y.get() < logical_height.get(); logical_y.set(logical_y.get() + 1)) {
-        for (PosGrid_x logical_x{ 0 }; logical_x.get() < logical_width.get(); logical_x.set(logical_x.get() + 1)) {
-              
-          const std::size_t index = cae::grid_convert::Logical_xy_to_index(logical_x, logical_y);
-          task(logical_x, logical_y, index);
+      for (; logical_y.get() < logical_height.get(); logical_y.set(logical_y.get() + 1)) {
         
+        std::size_t index = cae::grid_convert::Logical_xy_to_index(logical_x, logical_y);
+        
+        for (; logical_x.get() < logical_width.get(); logical_x.set(logical_x.get() + 1)) {
+              
+          task(logical_x, logical_y, index);
+          index++;
+
         }
       }
     }
@@ -492,17 +493,35 @@ namespace cae { // Conways's Game of Life
 
     }
 
-    template <typename Fn>
-    void logical_cell_MAIN_THREAD_ONLY(Fn&& task_lambda_ARGS_x_y_index) {
-      const std::size_t start_index = cae::multithreading_metadata::logical_work_grid_range.part_one(0);
-      const std::size_t size = cae::multithreading_metadata::logical_work_grid_range.part_two(0);
 
-      for (std::size_t index{ start_index }; index < (start_index + size); ++index) {
-        const component::type::PosGrid_x logical_x{ cae::grid_convert::Physical_index_to_Logical_x(index) };
-        const component::type::PosGrid_y logical_y{ cae::grid_convert::Physical_index_to_Logical_y(index) };
-        task_lambda_ARGS_x_y_index(logical_x, logical_y, index);
+    template <typename Fn>
+    void logical_cell_at_segment(std::size_t segment_instance, Fn&& task_lambda_ARGS_x_y_index) {
+      using namespace component::type;
+
+      std::size_t logical_start_index = cae::multithreading_metadata::logical_work_grid_range.part_one(segment_instance);
+      std::size_t size = cae::multithreading_metadata::logical_work_grid_range.part_two(segment_instance);
+      std::size_t logical_end_index = logical_start_index + size;
+      std::size_t current_logical_index = logical_start_index;
+
+      for (; current_logical_index < logical_end_index; ++current_logical_index) {
+
+        const std::size_t physical_index = cae::grid_convert::Logical_index_to_Physical_index(current_logical_index);
+
+        const PosGrid_x logical_x = cae::grid_convert::Logical_index_to_Logical_x(current_logical_index);
+        const PosGrid_y logical_y = cae::grid_convert::Logical_index_to_Logical_y(current_logical_index);
+
+        task_lambda_ARGS_x_y_index(logical_x, logical_y, physical_index); // index is always considered to be physical unless explicitly defined
+
       }
 
+    }
+
+
+    template <typename Fn>
+    void logical_cell_MAIN_THREAD_ONLY(Fn&& task_lambda_ARGS_x_y_index) {
+      
+      logical_cell_at_segment(0, task_lambda_ARGS_x_y_index);
+      
     }
 
 
@@ -520,46 +539,33 @@ namespace cae { // Conways's Game of Life
       [](void* lambda_object_ptr, std::size_t thread_work_instance) {
 
         TASK_CONCRETE_TYPE* t = static_cast<TASK_CONCRETE_TYPE*>(lambda_object_ptr);
+        
+        cae::grid_iterator::for_each::logical_cell_at_segment(thread_work_instance, t->task_lambda);
 
-        const std::size_t start_index = cae::multithreading_metadata::logical_work_grid_range.part_one(thread_work_instance);
-        const std::size_t size = cae::multithreading_metadata::logical_work_grid_range.part_two(thread_work_instance);
-
-        for (std::size_t index{ start_index }; index < (start_index + size); ++index) {
-          const component::type::PosGrid_x logical_x{ cae::grid_convert::Physical_index_to_Logical_x(index) };
-          const component::type::PosGrid_y logical_y{ cae::grid_convert::Physical_index_to_Logical_y(index) };
-          t->task_lambda(logical_x, logical_y, index);
-        }
       };
 
       cae::multithreading_metadata::workers_finished = 0;
       cae::multithreading_metadata::logical_cell_working = true;
-      cae::grid_iterator::for_each::logical_cell_MAIN_THREAD_ONLY(std::forward<Fn>(task_lambda_ARGS_x_y_index));
+      cae::grid_iterator::for_each::logical_cell_MAIN_THREAD_ONLY(task_lambda_ARGS_x_y_index);
       
-      while (cae::multithreading_metadata::workers_finished < cae::multithreading_metadata::usable_threads){}
+      while (cae::multithreading_metadata::workers_finished < cae::multithreading_metadata::usable_threads){
+        std::size_t spin{ 0 };
+        spin++;
+        if (spin < 200) {
+          _mm_pause();
+        }
+        else if (spin < 400) {
+          std::this_thread::yield();
+        }
+        else {
+          std::this_thread::sleep_for(std::chrono::nanoseconds(50));
+        }
+      }
       
       cae::multithreading_metadata::logical_cell_working = false;
       cae::multithreading::reset_per_thread_job_epoch();
     }
 
-    template <typename Fn>
-    void logical_cell_at_segment(std::size_t segment_instance, Fn&& task_lambda_ARGS_x_y_index) {
-      using namespace component::type;
-
-      std::size_t physical_index = cae::multithreading_metadata::logical_work_grid_range.part_one(segment_instance);
-      std::size_t size = cae::multithreading_metadata::logical_work_grid_range.part_two(segment_instance);
-      std::size_t end = physical_index + size;
-
-      for (physical_index; physical_index < end; ++physical_index) {
-        const std::size_t logical_i = cae::grid_convert::Physical_index_to_Logical_index(physical_index);
-        const PosGrid_x logical_x = cae::grid_convert::Logical_index_to_Logical_x(logical_i);
-        const PosGrid_y logical_y = cae::grid_convert::Logical_index_to_Logical_y(logical_i);
-
-        task_lambda_ARGS_x_y_index(logical_x, logical_y, physical_index); // index is always considered to be physical unless explicitly defined
-
-      }
-
-    }
-    
   }
   
   
