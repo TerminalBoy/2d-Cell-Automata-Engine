@@ -209,13 +209,14 @@ namespace cae { // Conways's Game of Life
     std::atomic<bool> physical_cell_working = false;
     std::atomic<bool> logical_cell_working = false;
     std::atomic<int> workers_finished = 0;
+    std::atomic<bool> exit_requested = false;
 
     struct alignas(64) Cache_Aligned_Thread_Epoch {
       std::atomic<std::uint64_t> thread_job_epoch{0};
     };
 
 
-    std::vector<Cache_Aligned_Thread_Epoch> per_thread_job_epoch(usable_threads);
+    std::vector<Cache_Aligned_Thread_Epoch> per_thread_job_epoch(usable_threads + 1);
 
     struct worker_job {
       void (*func)(void*, std::size_t /*thread_instance*/);
@@ -300,7 +301,7 @@ namespace cae { // Conways's Game of Life
 
     void mutithreaded_grid_iteration_busy_wait_loop(const std::size_t thread_work_instance /*chunk part to work on irrespective of logical or phyiscal grid modes*/) {
       std::size_t spin{ 0 };
-      while (true) {
+      while (!cae::multithreading_metadata::exit_requested) {
         if (cae::multithreading_metadata::logical_cell_working && cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch == 0) {
 
           cae::multithreading_metadata::current_job.func(
@@ -345,13 +346,14 @@ namespace cae { // Conways's Game of Life
     }
 
     void join_all_workers() {
+      cae::multithreading_metadata::exit_requested = true;
       for (std::size_t i{ 0 }; i < cae::multithreading_metadata::usable_threads; ++i) {
         cae::multithreading_metadata::worker_threads[i].join();
       }
     }
 
     void reset_per_thread_job_epoch() {
-      for (std::size_t i = 0; i < cae::multithreading_metadata::usable_threads; ++i) {
+      for (std::size_t i = 0; i < cae::multithreading_metadata::usable_threads + 1; ++i) {
         cae::multithreading_metadata::per_thread_job_epoch[i].thread_job_epoch = 0;
       }
     }
@@ -404,6 +406,8 @@ namespace cae { // Conways's Game of Life
           index++;
 
         }
+        logical_x.set(0);
+
       }
     }
 
@@ -926,7 +930,7 @@ namespace cae { // Conways's Game of Life
   void calculate_alive_neighbours(const myecs::sparse_set<key, link>& cell_index_to_entity) {
     using namespace cae::grid_iterator;
 
-    for_each::logical_cell(
+    for_each::logical_cell_mlt(
       [&](auto logical_x, auto logical_y, std::size_t index) {
         ecs_access(comp::neighbour, cell_index_to_entity.at(index), count) =
           nth_cell_alive_neighbours(
@@ -961,10 +965,8 @@ namespace cae { // Conways's Game of Life
     using namespace component::type;
     
     std::vector<sf::Color> colors{
-      sf::Color::Blue,
-      sf::Color::Green,
-      sf::Color::Magenta,
-      sf::Color::Cyan
+      sf::Color(148, 232, 180),
+      sf::Color(174, 197, 235)
     };
 
     cae::multithreading::for_each_participating_thread(
@@ -1099,7 +1101,7 @@ template <typename key, typename link>
 void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_entity) {
   using namespace cae::grid_iterator;
 
-  for_each::logical_cell(
+  for_each::logical_cell_mlt(
     [&](auto x, auto y, std::size_t index) {
       cae::rulebook::apply_rules(cell_index_to_entity.at(index));
     }
@@ -1178,7 +1180,7 @@ int main() {
   //
   std::cout << "Current seed : " << CAE_SEED << std::endl;
 
-  cae::init_grid(40, 40, 20, 20);  
+  cae::init_grid(43, 45, 20, 20);  
 
   const component::type::WidthPix DisplayWindow_Width{ cae::grid_metadata::CellWidth.get() * cae::grid_metadata::Logical_GridWidth.get()};
   const component::type::HeightPix DisplayWindow_Height{ cae::grid_metadata::CellHeight.get() * cae::grid_metadata::Logical_GridHeight.get() };
@@ -1208,7 +1210,7 @@ int main() {
 
   cae::init_border_VertexArray();
   
-  //cae::multithreading::init_multithreading();
+  cae::multithreading::init_multithreading();
   //cae::calculate_alive_neighbours(cell_index_to_entity);
   //cae::print_everycell_neighbour_count(cell_index_to_entity);
 
@@ -1249,7 +1251,7 @@ int main() {
     DisplayWindow.display();
   }
 
-  //cae::multithreading::join_all_workers();
+  cae::multithreading::join_all_workers();
 
   Profile1.dump_buffer();
   Profile2.dump_buffer();
