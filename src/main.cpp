@@ -760,6 +760,7 @@ namespace cae::input {
 
   template <typename key, typename link>
   void draw(sf::RenderWindow& window, const myecs::sparse_set<key, link>& cell_index_to_entity) {
+    window.setFramerateLimit(60); // temporary fix
     using namespace component::type;
     sf::Vector2i mousepos = sf::Mouse::getPosition(window);
 
@@ -782,6 +783,7 @@ namespace cae::input {
 
   template <typename key, typename link>
   void erase(sf::RenderWindow& window, const myecs::sparse_set<key, link>& cell_index_to_entity) {
+    window.setFramerateLimit(60); // temporary fix
     using namespace component::type;
     sf::Vector2i mousepos = sf::Mouse::getPosition(window);
 
@@ -800,6 +802,66 @@ namespace cae::input {
     }*/
     ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false);
 
+  }
+
+}
+
+namespace cae::input::terminal {
+  std::size_t get_unsigned_int() {
+    std::size_t input{};
+    while (true) {
+      std::cin >> input;
+
+      if (!std::cin.fail()) {
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        return input;
+      }
+
+      std::cout << "Invalid input, please try again: ";
+      std::cin.clear();
+      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    }
+  }
+
+  std::size_t get_user_input_grid_width() {
+    std::size_t input_grid_width{ 40 };
+ 
+    std::cout << "Enter the Width(no. of cells) for the simulation grid (default is 40): ";
+    input_grid_width = get_unsigned_int();
+    
+    if (input_grid_width == 0) input_grid_width = 40;
+    return input_grid_width;
+  }
+
+  std::size_t get_user_input_grid_height() {
+    std::size_t input_grid_height{ 40 };
+
+    std::cout << "Enter the Height(no. of cells) for the simulation grid (default is 40): ";
+    input_grid_height = get_unsigned_int();
+
+    if (input_grid_height == 0) input_grid_height = 40;
+    return input_grid_height;
+  }
+
+  std::size_t get_user_input_cell_width() {
+    std::size_t input_cell_width{ 20 };
+
+    std::cout << "Enter the Width (pixels) for each cell (default is 20): ";
+    input_cell_width = get_unsigned_int();
+
+    if (input_cell_width == 0) input_cell_width = 20;
+    return input_cell_width;
+  }
+
+  std::size_t get_user_input_cell_height() {
+    std::size_t input_cell_height{ 20 };
+
+    std::cout << "Enter the Height (pixels) for each cell (default is 20): ";
+    input_cell_height = get_unsigned_int();
+
+    if (input_cell_height == 0) input_cell_height = 20;
+    return input_cell_height;
   }
 
 }
@@ -887,14 +949,26 @@ int main() {
   //
   std::cout << "Current seed : " << CAE_SEED << std::endl;
 
-  cae::init_grid(40, 40, 20, 20);  
+  std::size_t input_grid_width = cae::input::terminal::get_user_input_grid_width();
+  std::size_t input_grid_height = cae::input::terminal::get_user_input_grid_height();
+  std::size_t input_cell_width = cae::input::terminal::get_user_input_cell_width();
+  std::size_t input_cell_height = cae::input::terminal::get_user_input_cell_height();
+
+  std::cout << "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase\n";
+
+  cae::init_grid(
+    input_grid_width,
+    input_grid_height,
+    input_cell_width,
+    input_cell_height
+  );
 
   const component::type::WidthPix DisplayWindow_Width{ cae::grid_metadata::CellWidth.get() * cae::grid_metadata::Logical_GridWidth.get()};
   const component::type::HeightPix DisplayWindow_Height{ cae::grid_metadata::CellHeight.get() * cae::grid_metadata::Logical_GridHeight.get() };
 
-  sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Cellular Automata Engine (Runnig: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase");
+  sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase");
   sf::Event event;
-  //DisplayWindow.setFramerateLimit(8);
+  DisplayWindow.setFramerateLimit(8);
 
   
   myecs::sparse_set<std::uint32_t, entity> cell_index_to_entity; // REFERRES TO PHYSICAL //  will have padding of one cell around the edges
@@ -933,6 +1007,7 @@ int main() {
       cae::input::erase(DisplayWindow, cell_index_to_entity);
     }
     else if (!cae::input::is_paused() && DisplayWindow.hasFocus()){
+      DisplayWindow.setFramerateLimit(8);
       Profile1.Profile_it(
         [&]() {
           cae::calculate_alive_neighbours(cell_index_to_entity);
