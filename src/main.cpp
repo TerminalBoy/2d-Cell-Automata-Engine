@@ -167,18 +167,18 @@ namespace cae { // Conways's Game of Life
 
 
     inline std::size_t Physical_xy_to_index(PosGrid_x physical_x, PosGrid_y physical_y) {
-      return (szt(physical_y.get()) * szt(cae::grid_metadata::Physical_GridHeight.get())) + szt(physical_x.get());
+      return (szt(physical_y.get()) * szt(cae::grid_metadata::Physical_GridWidth.get())) + szt(physical_x.get());
     }
 
     inline std::size_t Logical_xy_to_index(PosGrid_x logical_x, PosGrid_y logical_y) {
       const PosGrid_x physical_x{ Logical_x_to_Physical_x(logical_x) };
       const PosGrid_y physical_y{ Logical_y_to_Physical_y(logical_y) };
-      return (szt(physical_y.get()) * szt(cae::grid_metadata::Physical_GridHeight.get())) + szt(physical_x.get());
+      return (szt(physical_y.get()) * szt(cae::grid_metadata::Physical_GridWidth.get())) + szt(physical_x.get());
     }
     
     // for when i need the logical index for some reason
     inline std::size_t Logical_xy_to_index_RETURN_LOGICAL(PosGrid_x logical_x, PosGrid_y logical_y) {
-      return (szt(logical_y.get()) * szt(cae::grid_metadata::Logical_GridHeight.get())) + szt(logical_x.get());
+      return (szt(logical_y.get()) * szt(cae::grid_metadata::Logical_GridWidth.get())) + szt(logical_x.get());
     }
 
   }
