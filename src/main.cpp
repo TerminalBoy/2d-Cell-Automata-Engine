@@ -763,22 +763,26 @@ namespace cae::input {
     window.setFramerateLimit(60); // temporary fix
     using namespace component::type;
     sf::Vector2i mousepos = sf::Mouse::getPosition(window);
+    bool inside_window =
+      mousepos.x < window.getSize().x &&
+      mousepos.y < window.getSize().y;
 
-    PosPix_x mouse_x{ mousepos.x };
-    PosPix_y mouse_y{ mousepos.y };
+    if (inside_window) {
+      PosPix_x mouse_x{ mousepos.x };
+      PosPix_y mouse_y{ mousepos.y };
 
-    // view cordinates // is never physical
-    PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
-    PosGrid_y mouse_grid_y{ cae::grid_convert::Pixel_y_to_Grid_y(mouse_y.get()) };
+      // view cordinates // is never physical
+      PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
+      PosGrid_y mouse_grid_y{ cae::grid_convert::Pixel_y_to_Grid_y(mouse_y.get()) };
 
-    std::size_t index = cae::grid_convert::Logical_xy_to_index(mouse_grid_x, mouse_grid_y);
-    /*
-    if (!window.hasFocus()) {
-      std::cout << "\nCancelled Draw, Window out of focus\n";
-      return;
-    }*/
-    ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(true);
-    
+      std::size_t index = cae::grid_convert::Logical_xy_to_index(mouse_grid_x, mouse_grid_y);
+      /*
+      if (!window.hasFocus()) {
+        std::cout << "\nCancelled Draw, Window out of focus\n";
+        return;
+      }*/
+      ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(true);
+    }
   }
 
   template <typename key, typename link>
@@ -786,22 +790,26 @@ namespace cae::input {
     window.setFramerateLimit(60); // temporary fix
     using namespace component::type;
     sf::Vector2i mousepos = sf::Mouse::getPosition(window);
+    bool inside_window =
+      mousepos.x < window.getSize().x &&
+      mousepos.y < window.getSize().y;
 
-    PosPix_x mouse_x{ mousepos.x };
-    PosPix_y mouse_y{ mousepos.y };
+    if (inside_window) {
+      PosPix_x mouse_x{ mousepos.x };
+      PosPix_y mouse_y{ mousepos.y };
 
-    // view cordinates // is never physical
-    PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
-    PosGrid_y mouse_grid_y{ cae::grid_convert::Pixel_y_to_Grid_y(mouse_y.get()) };
+      // view cordinates // is never physical
+      PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
+      PosGrid_y mouse_grid_y{ cae::grid_convert::Pixel_y_to_Grid_y(mouse_y.get()) };
 
-    std::size_t index = cae::grid_convert::Logical_xy_to_index(mouse_grid_x, mouse_grid_y);
-    /*
-    if (!window.hasFocus()) {
-      std::cout << "\nCancelled Erase, Window out of focus\n";
-      return;
-    }*/
-    ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false);
-
+      std::size_t index = cae::grid_convert::Logical_xy_to_index(mouse_grid_x, mouse_grid_y);
+      /*
+      if (!window.hasFocus()) {
+        std::cout << "\nCancelled Erase, Window out of focus\n";
+        return;
+      }*/
+      ecs_access(comp::alive, cell_index_to_entity.at(index), value).set(false);
+    }
   }
 
 }
