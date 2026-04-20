@@ -69,6 +69,9 @@ Rules:
 2. Any live cell with two or three live neighbours lives on
 3. Any live cell with more than three live neighbours dies
 4. Any dead cell with exactly three live neighbours becomes alive
+ 
+<br> 
+<img width="841" height="863" alt="2d CAE pic0" src="https://github.com/user-attachments/assets/97d202bc-559c-4b00-b442-6926534d1591" />
 
 ### Note: This engine can run any other cellular automata simualtion just by changing its rulebook and neighbour counting range
 
