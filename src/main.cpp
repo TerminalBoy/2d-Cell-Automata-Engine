@@ -199,8 +199,8 @@ namespace cae { // Conways's Game of Life
   namespace multithreading_metadata {
     using namespace component::type;
 
-    std::int32_t total_hardware_threads = std::thread::hardware_concurrency();
-    std::int32_t usable_threads = std::max(1, total_hardware_threads - 1);
+    const std::int32_t total_hardware_threads = std::thread::hardware_concurrency();
+    const std::int32_t usable_threads = std::max(1, total_hardware_threads - 1);
     myecs::pair_container<std::size_t, std::size_t> logical_work_grid_range; // in logical index
     myecs::pair_container<std::size_t, std::size_t> physical_work_grid_range; // in physical index
 
@@ -219,8 +219,8 @@ namespace cae { // Conways's Game of Life
     std::vector<Cache_Aligned_Thread_Epoch> per_thread_job_epoch(usable_threads + 1);
 
     struct worker_job {
-      void (*func)(void*, std::size_t /*thread_instance*/);
-      void* data;
+      std::atomic<void (*)(void*, std::size_t /*thread_instance*/)> func;
+      std::atomic<void*> data;
     };
 
     inline worker_job current_job;
