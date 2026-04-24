@@ -301,9 +301,15 @@ namespace cae { // Conways's Game of Life
 
     void mutithreaded_grid_iteration_busy_wait_loop(const std::size_t thread_work_instance /*chunk part to work on irrespective of logical or phyiscal grid modes*/) {
       std::size_t spin{ 0 };
+      
+      auto& exit_req = cae::multithreading_metadata::exit_requested;
+      auto& logical_cell_working = cae::multithreading_metadata::logical_cell_working;
+      auto& this_thread_job_epoch = cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch;
+      auto& workers_finished = cae::multithreading_metadata::workers_finished;
 
-      while (!cae::multithreading_metadata::exit_requested) {
-        if (cae::multithreading_metadata::logical_cell_working && cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch == 0) {
+      while (!exit_req.load(std::memory_order_relaxed)) {
+        if (logical_cell_working.load(std::memory_order_acquire) 
+          && this_thread_job_epoch.load(std::memory_order_acquire) == 0) {
 
           auto job_struct = cae::multithreading_metadata::current_job.load(std::memory_order_acquire);
           auto fn = job_struct.func;
@@ -311,8 +317,8 @@ namespace cae { // Conways's Game of Life
           
           fn(dat, thread_work_instance);
 
-          cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch++;
-          cae::multithreading_metadata::workers_finished++;
+          this_thread_job_epoch.fetch_add(1, std::memory_order_release);
+          workers_finished.fetch_add(1, std::memory_order_release);
           spin = 0;
         }
         else {
@@ -348,7 +354,7 @@ namespace cae { // Conways's Game of Life
     }
 
     void join_all_workers() {
-      cae::multithreading_metadata::exit_requested = true;
+      cae::multithreading_metadata::exit_requested.store(true, std::memory_order_relaxed);
       for (std::size_t i{ 0 }; i < cae::multithreading_metadata::usable_threads; ++i) {
         cae::multithreading_metadata::worker_threads[i].join();
       }
@@ -356,7 +362,7 @@ namespace cae { // Conways's Game of Life
 
     void reset_per_thread_job_epoch() {
       for (std::size_t i = 0; i < cae::multithreading_metadata::usable_threads + 1; ++i) {
-        cae::multithreading_metadata::per_thread_job_epoch[i].thread_job_epoch = 0;
+        cae::multithreading_metadata::per_thread_job_epoch[i].thread_job_epoch.store(0, std::memory_order_release);
       }
     }
   }
