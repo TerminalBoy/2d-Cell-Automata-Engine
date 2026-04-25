@@ -308,9 +308,12 @@ namespace cae { // Conways's Game of Life
 
     void mutithreaded_grid_iteration_busy_wait_loop(const std::size_t thread_work_instance /*chunk part to work on irrespective of logical or phyiscal grid modes*/) {
       std::size_t spin{ 0 };
-      
+      // as thread_work_instance is always > 0 
+      // as 0 is for main thread only so we compute the extra usable thread index
+      std::size_t usable_thread_index = thread_work_instance - 1;
+
       auto& exit_req = cae::multithreading_metadata::exit_requested;
-      auto& this_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[thread_work_instance].thread_work_status;
+      auto& this_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[usable_thread_index].thread_work_status;
 
       while (!exit_req.load(std::memory_order_relaxed)) {
         if (this_thread_work_status.load(std::memory_order_acquire) == cae::multithreading_metadata::thread_work_status::working) {
@@ -630,57 +633,16 @@ namespace cae { // Conways's Game of Life
 
         }, // };
 
-        std::memory_order_release
+        std::memory_order_relaxed
       );
 
-      cae::multithreading::for_each_extra_participating_thread(
-        [](std::size_t index) {
-          auto& current_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status;
-          current_thread_work_status.store(cae::multithreading_metadata::thread_work_status_WORKING, std::memory_order_release);
-        }
-      );
-      cae::multithreading_metadata::logical_cell_working.store(true, std::memory_order_release);
+      cae::multithreading::start_multithreaded_compute_logical();
+
       cae::grid_iterator::for_each::logical_cell_MAIN_THREAD_ONLY(task_lambda_ARGS_x_y_index);
       
-      std::size_t spin{ 0 };
-      while (true){
-        
-        
-        std::int64_t finished_counter = 0;
+      cae::multithreading::wait_for_threads_doing_task();
+      cae::multithreading::stop_multithreaded_compute_logical();
 
-        cae::multithreading::for_each_extra_participating_thread(
-          [&](std::size_t index) {
-            auto current_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status.load(std::memory_order_acquire);
-            finished_counter += current_thread_work_status;
-          }
-        );
-
-        if (finished_counter == cae::multithreading_metadata::usable_threads) break;
-
-        spin++;
-        if (spin < 200) {
-          _mm_pause();
-        }
-        else if (spin < 400) {
-          std::this_thread::yield();
-        }
-        else {
-          std::this_thread::sleep_for(std::chrono::nanoseconds(50));
-        }
-      }
-      
-      cae::multithreading_metadata::logical_cell_working.store(false, std::memory_order_release);
-
-      cae::multithreading::for_each_extra_participating_thread(
-        [&](std::size_t index) {
-          auto& current_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status;
-          current_thread_work_status.store(cae::multithreading_metadata::thread_work_status_IDLE, std::memory_order_release);
-        }
-      );
-
-      
-      cae::multithreading_metadata::workers_finished.store(0, std::memory_order_release);
-      cae::multithreading::reset_per_thread_job_epoch();
     }
 
   }
@@ -1324,6 +1286,8 @@ int main() {
   cae::init_border_VertexArray();
   
   cae::multithreading::init_multithreading();
+
+  DisplayWindow.setFramerateLimit(8);
   //cae::calculate_alive_neighbours(cell_index_to_entity);
   //cae::print_everycell_neighbour_count(cell_index_to_entity);
 
@@ -1354,8 +1318,9 @@ int main() {
 
     }
 
-    cae::update_entities_VertexArray_state_only(cell_index_to_entity);
     //cae::visualize_logical_grid_segmentation();
+    cae::update_entities_VertexArray_state_only(cell_index_to_entity);
+    
     DisplayWindow.clear(sf::Color::Black);
     DisplayWindow.draw(cae::Renderables::entities_VertexArray);
     DisplayWindow.draw(cae::Renderables::border_horizontal);
