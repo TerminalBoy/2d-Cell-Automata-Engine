@@ -198,10 +198,9 @@ namespace cae { // Conways's Game of Life
 
   namespace multithreading_metadata {
     using namespace component::type;
-
-    constexpr std::int64_t thread_work_status_IDLE = -1;
-    constexpr std::int64_t thread_work_status_FINISHED = 1;
-    constexpr std::int64_t thread_work_status_WORKING = 0;
+    
+    enum class thread_work_status: std::int32_t {idle = -1, working = 0, finished = 1};
+    
 
     const std::int32_t total_hardware_threads = std::thread::hardware_concurrency();
     const std::int32_t usable_threads = std::max(1, total_hardware_threads - 1);
@@ -210,21 +209,15 @@ namespace cae { // Conways's Game of Life
 
     std::vector<std::thread> worker_threads(usable_threads);
 
-    std::atomic<bool> physical_cell_working = false;
-    std::atomic<bool> logical_cell_working = false;
+    //std::atomic<bool> physical_cell_working = false;
+    //std::atomic<bool> logical_cell_working = false; // depricated
     std::atomic<bool> exit_requested = false;
-    std::atomic<int> workers_finished = 0;
-
-    struct alignas(64) Cache_Aligned_Thread_Epoch {
-      std::atomic<std::uint64_t> thread_job_epoch{0};
-    };
-
+    
     struct alignas(64) Cache_Aligned_Thread_Work_Status {
-      std::atomic<std::int64_t> thread_work_status{ 0 }; // 0 == working, -1 == idle, 1 == just finished a work
+      std::atomic<thread_work_status> thread_work_status{ thread_work_status::idle }; // 0 == working, -1 == idle, 1 == just finished a work
     };
 
-    std::vector<Cache_Aligned_Thread_Epoch> per_thread_job_epoch(usable_threads + 1);
-    std::vector<Cache_Aligned_Thread_Work_Status> per_thread_work_satus(usable_threads + 1);
+    std::vector<Cache_Aligned_Thread_Work_Status> per_thread_work_satus(usable_threads);
 
     struct worker_job {
       void (*func)(void*, std::size_t /*thread_instance*/);
@@ -249,9 +242,7 @@ namespace cae { // Conways's Game of Life
 
     template <typename Fn>
     void for_each_extra_participating_thread(Fn&& task_lambda_ARGS_thread_index) {
-      std::size_t total_extra_participating_threads = cae::multithreading_metadata::usable_threads; 
-
-      for (std::size_t thread_index{ 1 }; thread_index < cae::multithreading_metadata::total_hardware_threads; ++thread_index) {
+      for (std::size_t thread_index{ 0 }; thread_index < cae::multithreading_metadata::usable_threads; ++thread_index) {
         task_lambda_ARGS_thread_index(thread_index);
       }
     }
@@ -319,25 +310,18 @@ namespace cae { // Conways's Game of Life
       std::size_t spin{ 0 };
       
       auto& exit_req = cae::multithreading_metadata::exit_requested;
-      auto& logical_cell_working = cae::multithreading_metadata::logical_cell_working;
-      auto& this_thread_job_epoch = cae::multithreading_metadata::per_thread_job_epoch[thread_work_instance].thread_job_epoch;
       auto& this_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[thread_work_instance].thread_work_status;
-      auto& workers_finished = cae::multithreading_metadata::workers_finished;
-
 
       while (!exit_req.load(std::memory_order_relaxed)) {
-        if (logical_cell_working.load(std::memory_order_acquire) 
-          && this_thread_job_epoch.load(std::memory_order_acquire) == 0) {
+        if (this_thread_work_status.load(std::memory_order_acquire) == cae::multithreading_metadata::thread_work_status::working) {
 
-          auto job_struct = cae::multithreading_metadata::current_job.load(std::memory_order_acquire);
+          auto job_struct = cae::multithreading_metadata::current_job.load(std::memory_order_relaxed);
           auto fn = job_struct.func;
           auto dat = job_struct.data;
           
           fn(dat, thread_work_instance);
 
-          this_thread_job_epoch.fetch_add(1, std::memory_order_release);
-          workers_finished.fetch_add(1, std::memory_order_release);
-          this_thread_work_status.store(cae::multithreading_metadata::thread_work_status_FINISHED, std::memory_order_release);
+          this_thread_work_status.store(cae::multithreading_metadata::thread_work_status::finished, std::memory_order_release);
 
           spin = 0;
         }
@@ -380,11 +364,76 @@ namespace cae { // Conways's Game of Life
       }
     }
 
-    void reset_per_thread_job_epoch() {
-      for (std::size_t i = 0; i < cae::multithreading_metadata::usable_threads + 1; ++i) {
-        cae::multithreading_metadata::per_thread_job_epoch[i].thread_job_epoch.store(0, std::memory_order_release);
+    void set_threads_work_status_to_working() {
+      for_each_extra_participating_thread(
+        [](std::size_t index) {
+          cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status.store(
+            cae::multithreading_metadata::thread_work_status::working,
+            std::memory_order_release
+          );
+        }
+      );
+    }
+
+    /*
+    void set_threads_work_status_to_finished() {
+      for_each_extra_participating_thread(
+        [](std::size_t index) {
+          cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status.store(
+            cae::multithreading_metadata::thread_work_status::finished,
+            std::memory_order_release
+          );
+        }
+      );
+    }
+    */
+
+    void set_threads_work_status_to_idle() {
+      for_each_extra_participating_thread(
+        [](std::size_t index) {
+          cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status.store(
+            cae::multithreading_metadata::thread_work_status::idle,
+            std::memory_order_release
+          );
+        }
+      );
+    }
+    
+    void start_multithreaded_compute_logical() {
+
+      auto job = cae::multithreading_metadata::current_job.load(std::memory_order_relaxed); // <-- must execute on main thread
+
+      assert((job.func != nullptr && job.data != nullptr) && "Work Lambda / task cannot be empty");
+
+      // make all extra threads prticipate
+      set_threads_work_status_to_working();
+
+    }
+
+    void wait_for_threads_doing_task() {
+      std::size_t threads_finished{ 0 };
+      
+      while (threads_finished != cae::multithreading_metadata::usable_threads) {
+        threads_finished = 0;
+        for_each_extra_participating_thread(
+          [&](std::size_t index) {
+            auto& current_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status;
+            using work_status = cae::multithreading_metadata::thread_work_status;
+
+            if (current_thread_work_status.load(std::memory_order_acquire) == work_status::finished) ++threads_finished;
+          }
+        );
+        std::this_thread::yield();
       }
     }
+
+    void stop_multithreaded_compute_logical() {
+
+      // make all extra threads stop, and set them to idle
+      set_threads_work_status_to_idle();
+
+    }
+
   }
 
   struct Renderables {
@@ -567,7 +616,7 @@ namespace cae { // Conways's Game of Life
       TASK_CONCRETE_TYPE task_lambda_storage{ std::forward<Fn>(task_lambda_ARGS_x_y_index) };
       
       cae::multithreading_metadata::current_job.store(
-        {
+        { // <worker_job> struct
           
           [](void* lambda_object_ptr, std::size_t thread_work_instance) {
 
@@ -579,12 +628,11 @@ namespace cae { // Conways's Game of Life
           
           &task_lambda_storage
 
-        },
+        }, // };
 
         std::memory_order_release
       );
 
-      cae::multithreading_metadata::workers_finished.store(0, std::memory_order_release);
       cae::multithreading::for_each_extra_participating_thread(
         [](std::size_t index) {
           auto& current_thread_work_status = cae::multithreading_metadata::per_thread_work_satus[index].thread_work_status;
