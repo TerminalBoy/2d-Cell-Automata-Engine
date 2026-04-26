@@ -636,13 +636,13 @@ namespace cae { // Conways's Game of Life
         std::memory_order_relaxed
       );
 
-      cae::multithreading::start_multithreaded_compute_logical();
+      cae::multithreading::start_multithreaded_compute_logical(); // <-- Release Operation, Publishes Changes to shared memory
 
-      cae::grid_iterator::for_each::logical_cell_MAIN_THREAD_ONLY(task_lambda_ARGS_x_y_index);
+      cae::grid_iterator::for_each::logical_cell_MAIN_THREAD_ONLY(task_lambda_ARGS_x_y_index); // main threads participates in task
       
-      cae::multithreading::wait_for_threads_doing_task();
-      cae::multithreading::stop_multithreaded_compute_logical();
-
+      cae::multithreading::wait_for_threads_doing_task(); // <-- Acquire Operation, Retrives Changes
+      cae::multithreading::stop_multithreaded_compute_logical(); // <-- Release Operation, sets thread pool to idle, then yeild
+ 
     }
 
   }
