@@ -883,11 +883,10 @@ namespace cae::input::terminal {
 }
 
 namespace cae::gui {
-  void ui() {
-    ImGui::Begin("Hello World");
+  void ui(float& speed) {
+    ImGui::Begin("Control Panel");
 
-    ImGui::Text("This is a Simulation");
-    ImGui::Button("hehehe");
+    ImGui::SliderFloat("Simulation Speed", &speed, 1.f, 60.f);
 
     ImGui::End();
   }
@@ -1003,7 +1002,7 @@ int main() {
   );
 
   sf::Event event;
-  DisplayWindow.setFramerateLimit(60);
+  DisplayWindow.setVerticalSyncEnabled(true);
 
   
   myecs::sparse_set<std::uint32_t, entity> cell_index_to_entity; // REFERRES TO PHYSICAL //  will have padding of one cell around the edges
@@ -1035,36 +1034,46 @@ int main() {
   ImGuiIO& io = ImGui::GetIO();
   sf::Clock clock;
 
+  float simulation_timer{};
+  float speed = 8.f;
+  float simulation_interval = 1.f / speed;
+  float dt{};
+
   while (DisplayWindow.isOpen()) {
-    
+    dt = clock.restart().asSeconds();
+    simulation_interval = 1.f / speed;
+
     while (DisplayWindow.pollEvent(event)) {
       if (event.type == sf::Event::Closed) DisplayWindow.close();
     }
 
-    ImGui_SFML::Map(io, event, DisplayWindow, clock);
+    ImGui_SFML::Map(io, event, DisplayWindow, dt);
     ImGui_SFML::ImGuiInitNewFrame();
-    cae::gui::ui();
+    cae::gui::ui(speed);
 
-    if (cae::input::is_drawing() && DisplayWindow.hasFocus()) {
+    if (cae::input::is_drawing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse) {
       cae::input::draw(DisplayWindow, cell_index_to_entity);
     }
-    else if (cae::input::is_erasing() && DisplayWindow.hasFocus()) {
+    else if (cae::input::is_erasing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse) {
       cae::input::erase(DisplayWindow, cell_index_to_entity);
     }
-    else if (!cae::input::is_paused() && DisplayWindow.hasFocus()){
-      DisplayWindow.setFramerateLimit(8);
-      Profile1.Profile_it(
-        [&]() {
-          cae::calculate_alive_neighbours(cell_index_to_entity);
-        }
-      );
+    else if (!cae::input::is_paused() && DisplayWindow.hasFocus() && !io.WantCaptureMouse){
+      simulation_timer += dt;
+      if (simulation_timer >= simulation_interval) {
+        
+        simulation_timer = 0;
+        Profile1.Profile_it(
+          [&]() {
+            cae::calculate_alive_neighbours(cell_index_to_entity);
+          }
+        );
 
-      Profile2.Profile_it(
-        [&]() {
-          conways_game_of_life(cell_index_to_entity);
-        }
-      );
-
+        Profile2.Profile_it(
+          [&]() {
+            conways_game_of_life(cell_index_to_entity);
+          }
+        );
+      }
     }
 
     cae::update_entities_VertexArray_state_only(cell_index_to_entity);

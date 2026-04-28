@@ -97,8 +97,8 @@ namespace ImGui_SFML {
     );
   }
 
-  void MapDeltaClock(ImGuiIO& io, sf::Clock& clock) {
-    io.DeltaTime = clock.restart().asSeconds();
+  void MapDeltaClock(ImGuiIO& io, float delta_time) {
+    io.DeltaTime = delta_time;
   }
   
   void InitWith_DarkMode() {
@@ -119,11 +119,11 @@ namespace ImGui_SFML {
     ImGui_ImplOpenGL3_Init("#version 130");
   }
 
-  void Map(ImGuiIO& io, sf::Event& event, sf::RenderWindow& window, sf::Clock& clock) {
+  void Map(ImGuiIO& io, sf::Event& event, sf::RenderWindow& window, float delta_time) {
     MapMouseEvents(io, event);
     MapKeyboardEvents(io, event);
     MapFrame(io, window);
-    MapDeltaClock(io, clock);
+    MapDeltaClock(io, delta_time);
     
   }
 
