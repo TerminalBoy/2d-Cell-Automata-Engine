@@ -12,9 +12,17 @@
 #include <chrono>
 #include <utility>
 #include <type_traits>
-#include "../dependencies/Custom_ECS/include/EntityComponentSystem.hpp"
+#include "../dependencies/Custom_ECS/include/EntityComponentSystem.hpp" // main Entity Component System used (custom built)
 #include "../dependencies/RNG/include/random.hpp" // seed based random number generator - xorshift32
-#include <SFML/Graphics.hpp>
+
+// Graphics includes
+#include "../dependencies/SFML/include/SFML/Graphics.hpp"
+#include "../dependencies/SFML/include/SFML/OpenGL.hpp"
+#include "../dependencies/ImGui/include/imgui.h"
+#include "../dependencies/ImGui/include/backends/imgui_impl_opengl3.h"
+#include "../dependencies/ImGui_SFML_Custom_Bridge/include/ImGui_SFML_Custom_Bridge.hpp" // <-- Custom SFML -> ImGui Bridge
+
+
 
 // PLEASE READ DOCUMENATTION BEFORE FORKING OR CONTRIBUTING
 // 
@@ -874,6 +882,17 @@ namespace cae::input::terminal {
 
 }
 
+namespace cae::gui {
+  void ui() {
+    ImGui::Begin("Hello World");
+
+    ImGui::Text("This is a Simulation");
+    ImGui::Button("hehehe");
+
+    ImGui::End();
+  }
+}
+
 template <typename key, typename link>
 void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_entity) {
   using namespace cae::grid_iterator;
@@ -974,9 +993,17 @@ int main() {
   const component::type::WidthPix DisplayWindow_Width{ cae::grid_metadata::CellWidth.get() * cae::grid_metadata::Logical_GridWidth.get()};
   const component::type::HeightPix DisplayWindow_Height{ cae::grid_metadata::CellHeight.get() * cae::grid_metadata::Logical_GridHeight.get() };
 
-  sf::RenderWindow DisplayWindow(sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()), "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase");
+  sf::RenderWindow DisplayWindow(
+    
+    sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()),
+    "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase",
+    sf::Style::Default,
+    ImGui_SFML::SFML_StandardContext()
+  
+  );
+
   sf::Event event;
-  DisplayWindow.setFramerateLimit(8);
+  DisplayWindow.setFramerateLimit(60);
 
   
   myecs::sparse_set<std::uint32_t, entity> cell_index_to_entity; // REFERRES TO PHYSICAL //  will have padding of one cell around the edges
@@ -1002,11 +1029,21 @@ int main() {
   //cae::calculate_alive_neighbours(cell_index_to_entity);
   //cae::print_everycell_neighbour_count(cell_index_to_entity);
 
+  
+
+  ImGui_SFML::InitWith_DarkMode();
+  ImGuiIO& io = ImGui::GetIO();
+  sf::Clock clock;
+
   while (DisplayWindow.isOpen()) {
     
     while (DisplayWindow.pollEvent(event)) {
       if (event.type == sf::Event::Closed) DisplayWindow.close();
     }
+
+    ImGui_SFML::Map(io, event, DisplayWindow, clock);
+    ImGui_SFML::ImGuiInitNewFrame();
+    cae::gui::ui();
 
     if (cae::input::is_drawing() && DisplayWindow.hasFocus()) {
       cae::input::draw(DisplayWindow, cell_index_to_entity);
@@ -1036,8 +1073,13 @@ int main() {
     DisplayWindow.draw(cae::Renderables::border_horizontal);
     DisplayWindow.draw(cae::Renderables::border_vertical);
     
+    DisplayWindow.resetGLStates();
+    ImGui_SFML::RenderUi();
+
     DisplayWindow.display();
   }
+
+  ImGui_SFML::CleanUp();
 
   Profile1.dump_buffer();
   Profile2.dump_buffer();

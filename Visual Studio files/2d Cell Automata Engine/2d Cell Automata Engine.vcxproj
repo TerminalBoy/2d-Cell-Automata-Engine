@@ -106,7 +106,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\dependencies\SFML\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\dependencies\SFML\include;$(SolutionDir)..\..\dependencies\ImGui\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -125,7 +125,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\dependencies\SFML\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\dependencies\SFML\include;$(SolutionDir)..\..\dependencies\ImGui\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -135,6 +135,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\dependencies\ImGui\include\backends\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="..\..\dependencies\ImGui\include\imgui.cpp" />
+    <ClCompile Include="..\..\dependencies\ImGui\include\imgui_draw.cpp" />
+    <ClCompile Include="..\..\dependencies\ImGui\include\imgui_tables.cpp" />
+    <ClCompile Include="..\..\dependencies\ImGui\include\imgui_widgets.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
