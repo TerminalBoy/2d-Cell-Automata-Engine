@@ -85,6 +85,8 @@ namespace cae { // Conways's Game of Life
     std::int32_t padding{1}; // physical padding around the edges
     std::int32_t total_logical{}; // total logical cells/entities
     std::int32_t total_physical{};
+
+    bool paused = false;
   }
 
   // WORKINGS ARE ALWAYS DONE ON THE PHYSICAL GRID, as PHYSICAL GRID IS WHAT EXISTS IN ARRAY/MEMORY !!!
@@ -743,8 +745,11 @@ namespace cae::rulebook {
 
 namespace cae::input {
   bool is_paused() {
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl)) return true;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl))  return true;
+    if (cae::grid_metadata::paused) return true;
+
     return false;
+
   }
 
   bool is_drawing() {
@@ -884,7 +889,12 @@ namespace cae::input::terminal {
 
 namespace cae::gui {
   void ui(float& speed) {
-    ImGui::Begin("Control Panel");
+    ImGui::SetNextWindowSize(ImVec2(400, 90));
+
+    ImGui::Begin("Control Panel", nullptr, ImGuiWindowFlags_NoResize);
+
+    if (ImGui::Button(cae::grid_metadata::paused ? "Resume" : "Pause"))
+      cae::grid_metadata::paused = !cae::grid_metadata::paused;
 
     ImGui::SliderFloat("Simulation Speed", &speed, 1.f, 60.f);
 
@@ -1031,7 +1041,14 @@ int main() {
   
 
   ImGui_SFML::InitWith_DarkMode();
+  
   ImGuiIO& io = ImGui::GetIO();
+  ImGuiStyle& style = ImGui::GetStyle();
+  style.WindowRounding = 8.0f;
+  style.FrameRounding = 8.0f;
+  style.FramePadding = ImVec2(10, 5);
+  style.WindowBorderSize = 1.f;
+  style.AntiAliasedFill = true;
   sf::Clock clock;
 
   float simulation_timer{};
@@ -1045,9 +1062,10 @@ int main() {
 
     while (DisplayWindow.pollEvent(event)) {
       if (event.type == sf::Event::Closed) DisplayWindow.close();
+      ImGui_SFML::Map(io, event, DisplayWindow, dt);
     }
 
-    ImGui_SFML::Map(io, event, DisplayWindow, dt);
+    
     ImGui_SFML::ImGuiInitNewFrame();
     cae::gui::ui(speed);
 
@@ -1057,7 +1075,7 @@ int main() {
     else if (cae::input::is_erasing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse) {
       cae::input::erase(DisplayWindow, cell_index_to_entity);
     }
-    else if (!cae::input::is_paused() && DisplayWindow.hasFocus() && !io.WantCaptureMouse){
+    else if (!cae::input::is_paused()){
       simulation_timer += dt;
       if (simulation_timer >= simulation_interval) {
         
