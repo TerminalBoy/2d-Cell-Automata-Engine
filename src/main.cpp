@@ -900,6 +900,14 @@ namespace cae::gui {
 
     ImGui::End();
   }
+
+  void apply_style(ImGuiStyle& style) {
+    style.WindowRounding = 8.0f;
+    style.FrameRounding = 8.0f;
+    style.FramePadding = ImVec2(10, 5);
+    style.WindowBorderSize = 1.f;
+    style.AntiAliasedFill = true;
+  }
 }
 
 template <typename key, typename link>
@@ -1044,11 +1052,9 @@ int main() {
   
   ImGuiIO& io = ImGui::GetIO();
   ImGuiStyle& style = ImGui::GetStyle();
-  style.WindowRounding = 8.0f;
-  style.FrameRounding = 8.0f;
-  style.FramePadding = ImVec2(10, 5);
-  style.WindowBorderSize = 1.f;
-  style.AntiAliasedFill = true;
+  
+  cae::gui::apply_style(style);
+
   sf::Clock clock;
 
   float simulation_timer{};
