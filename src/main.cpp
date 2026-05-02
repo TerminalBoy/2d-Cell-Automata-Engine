@@ -888,6 +888,41 @@ namespace cae::input::terminal {
 }
 
 namespace cae::gui {
+  
+  void init_window_ui() {
+  
+  }
+
+  bool init_grid_from_input(ImGuiIO& io, ImGuiStyle& style, 
+    std::size_t& grid_width, std::size_t& grid_height, std::size_t& cell_width, std::size_t& cell_height,
+    std::uint8_t& cell_alive_color_R, std::uint8_t& cell_alive_color_G, std::uint8_t& cell_alive_color_B
+    ) {
+
+    sf::RenderWindow Initialization_Window(
+      sf::VideoMode(400, 300), 
+      "Choose Grid Dimentions", 
+      sf::Style::Default,
+      ImGui_SFML::SFML_StandardContext()
+    );
+
+    sf::Event event;
+    sf::Clock clock;
+    float delta_time = 0;
+    
+    while (Initialization_Window.isOpen()) {
+      delta_time = clock.restart().asSeconds();
+
+      while (Initialization_Window.pollEvent(event)) {
+        if (event.type == sf::Event::Closed) return false;
+        ImGui_SFML::Map(io, event, Initialization_Window, delta_time);
+      }
+
+
+
+    }
+
+  }
+  
   void ui(float& speed) {
     ImGui::SetNextWindowSize(ImVec2(400, 90));
 
@@ -980,6 +1015,19 @@ namespace Profile {
 
 int main() {
 
+
+  // imgui 
+
+  ImGui_SFML::InitWith_DarkMode();
+
+  ImGuiIO& io = ImGui::GetIO();
+  ImGuiStyle& style = ImGui::GetStyle();
+
+  cae::gui::apply_style(style);
+
+  // ----
+
+
   Profile::Timer Profile1("Calculating Alive Neighbours");
   Profile::Timer Profile2("Applying conways game of life, rules");
 
@@ -1048,12 +1096,6 @@ int main() {
 
   
 
-  ImGui_SFML::InitWith_DarkMode();
-  
-  ImGuiIO& io = ImGui::GetIO();
-  ImGuiStyle& style = ImGui::GetStyle();
-  
-  cae::gui::apply_style(style);
 
   sf::Clock clock;
 
