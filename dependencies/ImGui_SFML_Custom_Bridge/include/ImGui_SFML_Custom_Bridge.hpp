@@ -41,6 +41,7 @@ namespace ImGui_SFML {
     case sf::Keyboard::Space: return ImGuiKey_Space;
     case sf::Keyboard::Enter: return ImGuiKey_Enter;
     case sf::Keyboard::Escape: return ImGuiKey_Escape;
+      case sf::Keyboard::Backspace: return ImGuiKey_Backspace;
 
     default: return ImGuiKey_None;
     }
