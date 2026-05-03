@@ -898,6 +898,13 @@ namespace cae::input::terminal {
 
 namespace cae::gui {
 
+  template <typename Callable>
+  void repeat(std::size_t n_times, Callable&& lambda_no_ARGS) {
+    for (std::size_t i{}; i < n_times; ++i) {
+      lambda_no_ARGS();
+    }
+  }
+
   void apply_style(ImGuiStyle& style) {
     style.WindowRounding = 8.0f;
     style.FrameRounding = 8.0f;
@@ -906,7 +913,7 @@ namespace cae::gui {
     style.AntiAliasedFill = true;
   }
   
-  void init_window_gui(
+  void init_window_gui(std::uint32_t window_width, std::uint32_t window_height,
     int& grid_width, int& grid_height, int& cell_width, int& cell_height,
     float* cell_alive_colorRGBA,
     float* cell_dead_colorRGBA,
@@ -915,7 +922,7 @@ namespace cae::gui {
     
     ImGui_SFML::ImGuiInitNewFrame();
 
-    ImGui::SetNextWindowSize(ImVec2(500, 340));
+    ImGui::SetNextWindowSize(ImVec2(window_width, window_height));
     ImGui::SetNextWindowPos(ImVec2(0, 0));
 
     ImGui::Begin("Choose Gird Dimentions", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
@@ -926,11 +933,17 @@ namespace cae::gui {
     ImGui::Text("Enter grid height :");
     ImGui::InputInt("Grid Height", &grid_height);
     
+
+    repeat(5, []() { ImGui::Spacing(); });
+    
     ImGui::Text("Enter cell width :");
     ImGui::InputInt("Cell Width", &cell_width);
 
     ImGui::Text("Enter cell height :");
     ImGui::InputInt("Cell Height", &cell_height);
+
+    repeat(5, []() { ImGui::Spacing(); });
+
 
     ImGui::Text("Alive Cell Color :");
     ImGui::ColorEdit3("Alive Cell Color", cell_alive_colorRGBA);
@@ -938,7 +951,7 @@ namespace cae::gui {
     ImGui::Text("Dead Cell Color :");
     ImGui::ColorEdit3("Dead Cell Color", cell_dead_colorRGBA);
 
-    ImGui::Spacing();
+    repeat(5, []() { ImGui::Spacing(); });
 
     if (ImGui::Button("Start")) {
       start_requested = true;
@@ -976,8 +989,11 @@ namespace cae::gui {
       1.0f // alpha set to default (no transpenrency for now)
     };
 
+    const std::uint32_t window_width{ 420 };
+    const std::uint32_t window_height{ 400 };
+
     sf::RenderWindow Initialization_Window(
-      sf::VideoMode(500, 340), 
+      sf::VideoMode(window_width, window_height), 
       "Choose Grid Dimentions", 
       sf::Style::Default,
       ImGui_SFML::SFML_StandardContext()
@@ -1008,6 +1024,7 @@ namespace cae::gui {
 
       ImGui_SFML::MapFrameAndClock(io, Initialization_Window, delta_time);
       init_window_gui(
+        window_width, window_height,
         g_w, g_h,
         c_w, c_h,
         ca_RGBA,
