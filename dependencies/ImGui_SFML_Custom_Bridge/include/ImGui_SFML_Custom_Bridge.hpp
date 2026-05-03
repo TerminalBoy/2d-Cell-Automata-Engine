@@ -119,12 +119,16 @@ namespace ImGui_SFML {
     ImGui_ImplOpenGL3_Init("#version 130");
   }
 
-  void Map(ImGuiIO& io, sf::Event& event, sf::RenderWindow& window, float delta_time) {
+  void MapEvents(ImGuiIO& io, sf::Event& event) {
     MapMouseEvents(io, event);
     MapKeyboardEvents(io, event);
+    
+  }
+
+  void MapFrameAndClock(ImGuiIO& io, sf::RenderWindow& window, float delta_time) {
     MapFrame(io, window);
     MapDeltaClock(io, delta_time);
-    
+
   }
 
   void ImGuiInitNewFrame() {

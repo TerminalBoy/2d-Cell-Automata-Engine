@@ -77,9 +77,9 @@ namespace cae { // Conways's Game of Life
     }
 
     namespace current_cell_color { // state machine either 0 or 1
-      std::uint8_t r[2] = { cell_color_dead::r, cell_color_alive::r };
-      std::uint8_t g[2] = { cell_color_dead::g, cell_color_alive::g };
-      std::uint8_t b[2] = { cell_color_dead::b, cell_color_alive::b };
+      std::uint8_t r[2]; // to be initialized later
+      std::uint8_t g[2]; // to be initialized later
+      std::uint8_t b[2]; // to be initialized later
     }
     
     std::int32_t padding{1}; // physical padding around the edges
@@ -345,6 +345,15 @@ namespace cae { // Conways's Game of Life
 
     cae::grid_metadata::CellWidth.set(cell_width);
     cae::grid_metadata::CellHeight.set(cell_height);
+
+    cae::grid_metadata::current_cell_color::r[0] = cae::grid_metadata::cell_color_dead::r;
+    cae::grid_metadata::current_cell_color::g[0] = cae::grid_metadata::cell_color_dead::g;
+    cae::grid_metadata::current_cell_color::b[0] = cae::grid_metadata::cell_color_dead::b;
+
+    cae::grid_metadata::current_cell_color::r[1] = cae::grid_metadata::cell_color_alive::r;
+    cae::grid_metadata::current_cell_color::g[1] = cae::grid_metadata::cell_color_alive::g;
+    cae::grid_metadata::current_cell_color::b[1] = cae::grid_metadata::cell_color_alive::b;
+
 
   }
 
@@ -888,36 +897,149 @@ namespace cae::input::terminal {
 }
 
 namespace cae::gui {
+
+  void apply_style(ImGuiStyle& style) {
+    style.WindowRounding = 8.0f;
+    style.FrameRounding = 8.0f;
+    style.FramePadding = ImVec2(10, 5);
+    style.WindowBorderSize = 1.f;
+    style.AntiAliasedFill = true;
+  }
   
-  void init_window_ui() {
-  
+  void init_window_gui(
+    int& grid_width, int& grid_height, int& cell_width, int& cell_height,
+    float* cell_alive_colorRGBA,
+    float* cell_dead_colorRGBA,
+    bool& start_requested
+  ) {
+    
+    ImGui_SFML::ImGuiInitNewFrame();
+
+    ImGui::SetNextWindowSize(ImVec2(500, 340));
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+
+    ImGui::Begin("Choose Gird Dimentions", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+    
+    ImGui::Text("Enter grid width :");
+    ImGui::InputInt("Grid Width", &grid_width);
+    
+    ImGui::Text("Enter grid height :");
+    ImGui::InputInt("Grid Height", &grid_height);
+    
+    ImGui::Text("Enter cell width :");
+    ImGui::InputInt("Cell Width", &cell_width);
+
+    ImGui::Text("Enter cell height :");
+    ImGui::InputInt("Cell Height", &cell_height);
+
+    ImGui::Text("Alive Cell Color :");
+    ImGui::ColorEdit3("Alive Cell Color", cell_alive_colorRGBA);
+
+    ImGui::Text("Dead Cell Color :");
+    ImGui::ColorEdit3("Dead Cell Color", cell_dead_colorRGBA);
+
+    ImGui::Spacing();
+
+    if (ImGui::Button("Start")) {
+      start_requested = true;
+    }
+    
+    ImGui::End();
   }
 
-  bool init_grid_from_input(ImGuiIO& io, ImGuiStyle& style, 
+  bool init_grid_from_input( 
     std::size_t& grid_width, std::size_t& grid_height, std::size_t& cell_width, std::size_t& cell_height,
-    std::uint8_t& cell_alive_color_R, std::uint8_t& cell_alive_color_G, std::uint8_t& cell_alive_color_B
-    ) {
+    std::uint8_t& cell_alive_color_R, std::uint8_t& cell_alive_color_G, std::uint8_t& cell_alive_color_B,
+    std::uint8_t& cell_dead_color_R, std::uint8_t& cell_dead_color_G, std::uint8_t& cell_dead_color_B  
+  ) {
+
+    bool start_requested = false;
+
+    int g_w{ 50 };
+    int g_h{ 40 };
+    int c_h{ 20 };
+    int c_w{ 20 };
+
+    float ca_RGBA[4] =
+    {
+      static_cast<float>(cell_alive_color_R) / 255.0f,
+      static_cast<float>(cell_alive_color_G) / 255.0f,
+      static_cast<float>(cell_alive_color_B) / 255.0f,
+      1.0f // alpha set to default (no transpenrency for now)
+    };
+    
+    float cd_RGBA[4] =
+    {
+      static_cast<float>(cell_dead_color_R) / 255.0f,
+      static_cast<float>(cell_dead_color_G) / 255.0f,
+      static_cast<float>(cell_dead_color_B) / 255.0f,
+      1.0f // alpha set to default (no transpenrency for now)
+    };
 
     sf::RenderWindow Initialization_Window(
-      sf::VideoMode(400, 300), 
+      sf::VideoMode(500, 340), 
       "Choose Grid Dimentions", 
       sf::Style::Default,
       ImGui_SFML::SFML_StandardContext()
     );
+
+    ImGui_SFML::InitWith_DarkMode();
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    cae::gui::apply_style(style);
+
+
 
     sf::Event event;
     sf::Clock clock;
     float delta_time = 0;
     
     while (Initialization_Window.isOpen()) {
+      while (Initialization_Window.pollEvent(event)) {
+        if (event.type == sf::Event::Closed) {
+          Initialization_Window.close();
+          return false;
+        }
+        ImGui_SFML::MapEvents(io, event);
+      }
       delta_time = clock.restart().asSeconds();
 
-      while (Initialization_Window.pollEvent(event)) {
-        if (event.type == sf::Event::Closed) return false;
-        ImGui_SFML::Map(io, event, Initialization_Window, delta_time);
+      ImGui_SFML::MapFrameAndClock(io, Initialization_Window, delta_time);
+      init_window_gui(
+        g_w, g_h,
+        c_w, c_h,
+        ca_RGBA,
+        cd_RGBA,
+        start_requested
+      );
+
+      if (start_requested) {
+
+        grid_width = static_cast<std::size_t>(g_w);
+        grid_height = static_cast<std::size_t>(g_h);
+
+        cell_width = static_cast<std::size_t>(c_w);
+        cell_height = static_cast<std::size_t>(c_h);
+        
+        cell_alive_color_R = ca_RGBA[0] * 255;
+        cell_alive_color_G = ca_RGBA[1] * 255;
+        cell_alive_color_B = ca_RGBA[2] * 255;
+
+        cell_dead_color_R = cd_RGBA[0] * 255;
+        cell_dead_color_G = cd_RGBA[1] * 255;
+        cell_dead_color_B = cd_RGBA[2] * 255;
+
+        Initialization_Window.close();
+        ImGui_SFML::CleanUp();
+        return true;
       }
 
-
+      Initialization_Window.clear(sf::Color::Black);
+      Initialization_Window.resetGLStates();
+      ImGui_SFML::RenderUi();
+      Initialization_Window.display();
 
     }
 
@@ -936,13 +1058,7 @@ namespace cae::gui {
     ImGui::End();
   }
 
-  void apply_style(ImGuiStyle& style) {
-    style.WindowRounding = 8.0f;
-    style.FrameRounding = 8.0f;
-    style.FramePadding = ImVec2(10, 5);
-    style.WindowBorderSize = 1.f;
-    style.AntiAliasedFill = true;
-  }
+  
 }
 
 template <typename key, typename link>
@@ -1016,17 +1132,33 @@ namespace Profile {
 int main() {
 
 
-  // imgui 
+  
+  std::size_t input_grid_width{};
+  std::size_t input_grid_height{};
+  std::size_t input_cell_width{};
+  std::size_t input_cell_height{};
 
-  ImGui_SFML::InitWith_DarkMode();
+  bool initialized = 
+    cae::gui::init_grid_from_input(
+   
+    input_grid_width, 
+    input_grid_height, 
+    input_cell_width, 
+    input_cell_height,
 
-  ImGuiIO& io = ImGui::GetIO();
-  ImGuiStyle& style = ImGui::GetStyle();
+    cae::grid_metadata::cell_color_alive::r,
+    cae::grid_metadata::cell_color_alive::g,
+    cae::grid_metadata::cell_color_alive::b,
 
-  cae::gui::apply_style(style);
+    cae::grid_metadata::cell_color_dead::r,
+    cae::grid_metadata::cell_color_dead::g,
+    cae::grid_metadata::cell_color_dead::b
+  );
 
-  // ----
 
+  if (!initialized) return 0;
+
+  // ------
 
   Profile::Timer Profile1("Calculating Alive Neighbours");
   Profile::Timer Profile2("Applying conways game of life, rules");
@@ -1041,10 +1173,7 @@ int main() {
   //
   std::cout << "Current seed : " << CAE_SEED << std::endl;
 
-  std::size_t input_grid_width = cae::input::terminal::get_user_input_grid_width();
-  std::size_t input_grid_height = cae::input::terminal::get_user_input_grid_height();
-  std::size_t input_cell_width = cae::input::terminal::get_user_input_cell_width();
-  std::size_t input_cell_height = cae::input::terminal::get_user_input_cell_height();
+  
 
   std::cout << "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase\n";
 
@@ -1094,7 +1223,13 @@ int main() {
   //cae::calculate_alive_neighbours(cell_index_to_entity);
   //cae::print_everycell_neighbour_count(cell_index_to_entity);
 
-  
+  ImGui_SFML::InitWith_DarkMode();
+
+  ImGuiIO& io = ImGui::GetIO();
+  ImGuiStyle& style = ImGui::GetStyle();
+
+  cae::gui::apply_style(style);
+
 
 
   sf::Clock clock;
@@ -1105,14 +1240,16 @@ int main() {
   float dt{};
 
   while (DisplayWindow.isOpen()) {
-    dt = clock.restart().asSeconds();
-    simulation_interval = 1.f / speed;
 
     while (DisplayWindow.pollEvent(event)) {
       if (event.type == sf::Event::Closed) DisplayWindow.close();
-      ImGui_SFML::Map(io, event, DisplayWindow, dt);
+      ImGui_SFML::MapEvents(io, event);
     }
 
+    dt = clock.restart().asSeconds();
+    simulation_interval = 1.f / speed;
+
+    ImGui_SFML::MapFrameAndClock(io, DisplayWindow, dt);
     
     ImGui_SFML::ImGuiInitNewFrame();
     cae::gui::ui(speed);
