@@ -87,6 +87,9 @@ namespace cae { // Conways's Game of Life
     std::int32_t total_physical{};
 
     bool paused = false;
+
+    PosPix_x center_camera_x{};
+    PosPix_y center_camera_y{};
   }
 
   // WORKINGS ARE ALWAYS DONE ON THE PHYSICAL GRID, as PHYSICAL GRID IS WHAT EXISTS IN ARRAY/MEMORY !!!
@@ -354,6 +357,13 @@ namespace cae { // Conways's Game of Life
     cae::grid_metadata::current_cell_color::g[1] = cae::grid_metadata::cell_color_alive::g;
     cae::grid_metadata::current_cell_color::b[1] = cae::grid_metadata::cell_color_alive::b;
 
+    cae::grid_metadata::center_camera_x.set(
+      cae::grid_metadata::Logical_GridWidth.get() * cae::grid_metadata::CellWidth.get() / 2
+    );
+
+    cae::grid_metadata::center_camera_y.set(
+      cae::grid_metadata::Logical_GridHeight.get() * cae::grid_metadata::CellHeight.get() / 2
+    );
 
   }
 
@@ -1019,6 +1029,34 @@ namespace cae::gui {
   
 }
 
+namespace cae::gui::camera {
+  void init_view_camera(sf::RenderWindow& window, sf::View& camera) {
+    camera.setCenter(cae::grid_metadata::center_camera_x.get(), cae::grid_metadata::center_camera_y.get());
+    camera.setSize(window.getSize().x, window.getSize().y);
+  }
+
+  inline
+  void change_camera_center(sf::View& camera ,std::size_t x, std::size_t y) {
+    camera.setCenter(x, y);
+  }
+
+  void take_input_for_camera_movement(sf::View& camera) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
+      camera.setCenter(camera.getCenter().x, camera.getCenter().y - 1);
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+      camera.setCenter(camera.getCenter().x, camera.getCenter().y + 1);
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
+      camera.setCenter(camera.getCenter().x - 1, camera.getCenter().y);
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+      camera.setCenter(camera.getCenter().x + 1, camera.getCenter().y);
+    }
+  }
+
+}
+
 template <typename key, typename link>
 void conways_game_of_life(const myecs::sparse_set<key, link>& cell_index_to_entity) {
   using namespace cae::grid_iterator;
@@ -1155,6 +1193,7 @@ int main() {
   );
 
   sf::Event event;
+  sf::View camera;
   DisplayWindow.setVerticalSyncEnabled(true);
 
   
@@ -1197,6 +1236,8 @@ int main() {
   float simulation_interval = 1.f / speed;
   float dt{};
 
+  cae::gui::camera::init_view_camera(DisplayWindow, camera);
+
   while (DisplayWindow.isOpen()) {
 
     while (DisplayWindow.pollEvent(event)) {
@@ -1237,8 +1278,11 @@ int main() {
       }
     }
 
+    cae::gui::camera::take_input_for_camera_movement(camera);
+
     cae::update_entities_VertexArray_state_only(cell_index_to_entity);
     DisplayWindow.clear(sf::Color::Black);
+    DisplayWindow.setView(camera);
     DisplayWindow.draw(cae::Renderables::entities_VertexArray);
     DisplayWindow.draw(cae::Renderables::border_horizontal);
     DisplayWindow.draw(cae::Renderables::border_vertical);
