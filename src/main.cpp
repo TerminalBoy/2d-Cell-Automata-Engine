@@ -835,7 +835,7 @@ namespace cae::input {
   }
 
 }
-
+/* DEPECRATED
 namespace cae::input::terminal {
   std::size_t get_unsigned_int() {
     std::size_t input{};
@@ -895,6 +895,7 @@ namespace cae::input::terminal {
   }
 
 }
+*/
 
 namespace cae::gui {
 
