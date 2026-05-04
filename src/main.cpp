@@ -835,67 +835,7 @@ namespace cae::input {
   }
 
 }
-/* DEPECRATED
-namespace cae::input::terminal {
-  std::size_t get_unsigned_int() {
-    std::size_t input{};
-    while (true) {
-      std::cin >> input;
 
-      if (!std::cin.fail()) {
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        return input;
-      }
-
-      std::cout << "Invalid input, please try again: ";
-      std::cin.clear();
-      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
-    }
-  }
-
-  std::size_t get_user_input_grid_width() {
-    std::size_t input_grid_width{ 40 };
- 
-    std::cout << "Enter the Width(no. of cells) for the simulation grid (default is 40): ";
-    input_grid_width = get_unsigned_int();
-    
-    if (input_grid_width == 0) input_grid_width = 40;
-    return input_grid_width;
-  }
-
-  std::size_t get_user_input_grid_height() {
-    std::size_t input_grid_height{ 40 };
-
-    std::cout << "Enter the Height(no. of cells) for the simulation grid (default is 40): ";
-    input_grid_height = get_unsigned_int();
-
-    if (input_grid_height == 0) input_grid_height = 40;
-    return input_grid_height;
-  }
-
-  std::size_t get_user_input_cell_width() {
-    std::size_t input_cell_width{ 20 };
-
-    std::cout << "Enter the Width (pixels) for each cell (default is 20): ";
-    input_cell_width = get_unsigned_int();
-
-    if (input_cell_width == 0) input_cell_width = 20;
-    return input_cell_width;
-  }
-
-  std::size_t get_user_input_cell_height() {
-    std::size_t input_cell_height{ 20 };
-
-    std::cout << "Enter the Height (pixels) for each cell (default is 20): ";
-    input_cell_height = get_unsigned_int();
-
-    if (input_cell_height == 0) input_cell_height = 20;
-    return input_cell_height;
-  }
-
-}
-*/
 
 namespace cae::gui {
 
