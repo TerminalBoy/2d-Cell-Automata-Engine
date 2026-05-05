@@ -791,7 +791,7 @@ namespace cae::input {
   }
 
   template <typename key, typename link>
-  void draw(sf::RenderWindow& window, const myecs::sparse_set<key, link>& cell_index_to_entity) {
+  void draw(sf::RenderWindow& window, sf::View& camera, const myecs::sparse_set<key, link>& cell_index_to_entity) {
     window.setFramerateLimit(60); // temporary fix
     using namespace component::type;
     sf::Vector2i mousepos = sf::Mouse::getPosition(window);
@@ -800,8 +800,11 @@ namespace cae::input {
       mousepos.y < window.getSize().y;
 
     if (inside_window) {
-      PosPix_x mouse_x{ mousepos.x };
-      PosPix_y mouse_y{ mousepos.y };
+      std::int32_t relative_to_rendering_window_center_x = mousepos.x - (window.getSize().x / 2);
+      std::int32_t relative_to_rendering_window_center_y = mousepos.y - (window.getSize().y / 2);
+
+      PosPix_x mouse_x{ static_cast<std::int32_t>(camera.getCenter().x) + relative_to_rendering_window_center_x };
+      PosPix_y mouse_y{ static_cast<std::int32_t>(camera.getCenter().y) + relative_to_rendering_window_center_y };
 
       // view cordinates // is never physical
       PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
@@ -818,7 +821,7 @@ namespace cae::input {
   }
 
   template <typename key, typename link>
-  void erase(sf::RenderWindow& window, const myecs::sparse_set<key, link>& cell_index_to_entity) {
+  void erase(sf::RenderWindow& window, sf::View& camera, const myecs::sparse_set<key, link>& cell_index_to_entity) {
     window.setFramerateLimit(60); // temporary fix
     using namespace component::type;
     sf::Vector2i mousepos = sf::Mouse::getPosition(window);
@@ -827,8 +830,11 @@ namespace cae::input {
       mousepos.y < window.getSize().y;
 
     if (inside_window) {
-      PosPix_x mouse_x{ mousepos.x };
-      PosPix_y mouse_y{ mousepos.y };
+      std::int32_t relative_to_rendering_window_center_x = mousepos.x - (window.getSize().x / 2);
+      std::int32_t relative_to_rendering_window_center_y = mousepos.y - (window.getSize().y / 2);
+
+      PosPix_x mouse_x{ static_cast<std::int32_t>(camera.getCenter().x) + relative_to_rendering_window_center_x };
+      PosPix_y mouse_y{ static_cast<std::int32_t>(camera.getCenter().y) + relative_to_rendering_window_center_y };
 
       // view cordinates // is never physical
       PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
@@ -1254,10 +1260,10 @@ int main() {
     cae::gui::ui(speed);
 
     if (cae::input::is_drawing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse) {
-      cae::input::draw(DisplayWindow, cell_index_to_entity);
+      cae::input::draw(DisplayWindow, camera, cell_index_to_entity);
     }
     else if (cae::input::is_erasing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse) {
-      cae::input::erase(DisplayWindow, cell_index_to_entity);
+      cae::input::erase(DisplayWindow, camera, cell_index_to_entity);
     }
     else if (!cae::input::is_paused()){
       simulation_timer += dt;
