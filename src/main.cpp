@@ -90,6 +90,9 @@ namespace cae { // Conways's Game of Life
 
     PosPix_x center_camera_x{};
     PosPix_y center_camera_y{};
+
+    WidthPix GridPixelWidth{};
+    HeightPix GridPixelHeight{};
   }
 
   // WORKINGS ARE ALWAYS DONE ON THE PHYSICAL GRID, as PHYSICAL GRID IS WHAT EXISTS IN ARRAY/MEMORY !!!
