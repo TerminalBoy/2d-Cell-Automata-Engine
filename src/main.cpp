@@ -418,6 +418,9 @@ namespace cae { // Conways's Game of Life
     cae::grid_metadata::current_cell_color::g[1] = cae::grid_metadata::cell_color_alive::g;
     cae::grid_metadata::current_cell_color::b[1] = cae::grid_metadata::cell_color_alive::b;
 
+    cae::grid_metadata::GridPixelWidth.set(cae::grid_metadata::Logical_GridWidth.get() * cae::grid_metadata::CellWidth.get());
+    cae::grid_metadata::GridPixelHeight.set(cae::grid_metadata::Logical_GridHeight.get() * cae::grid_metadata::CellHeight.get());
+
     cae::grid_metadata::center_camera_x.set(
       cae::grid_metadata::Logical_GridWidth.get() * cae::grid_metadata::CellWidth.get() / 2
     );
