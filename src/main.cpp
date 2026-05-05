@@ -194,6 +194,64 @@ namespace cae { // Conways's Game of Life
       return (szt(logical_y.get()) * szt(cae::grid_metadata::Logical_GridWidth.get())) + szt(logical_x.get());
     }
 
+    inline PosGrid_x Logical_index_to_Logical_x(std::size_t logical_index) {
+      PosGrid_x logical_x{ static_cast<std::int32_t>(logical_index % cae::grid_metadata::Logical_GridWidth.get()) };
+      return logical_x;
+    }
+
+    inline PosGrid_y Logical_index_to_Logical_y(std::size_t logical_index) {
+      PosGrid_y logical_y{ static_cast<std::int32_t>(logical_index / cae::grid_metadata::Logical_GridWidth.get()) };
+      return logical_y;
+    }
+
+    inline PosGrid_x Physical_index_to_Physical_x(std::size_t physical_index) {
+      PosGrid_x physical_x{ static_cast<std::int32_t>(physical_index % cae::grid_metadata::Physical_GridWidth.get()) };
+      return physical_x;
+    }
+
+    inline PosGrid_y Physical_index_to_Physical_y(std::size_t physical_index) {
+      PosGrid_y physical_y{ static_cast<std::int32_t>(physical_index / cae::grid_metadata::Physical_GridWidth.get()) };
+      return physical_y;
+    }
+
+    inline std::size_t Logical_index_to_Physical_index(std::size_t logical_index) {
+      // first we will retrive the logical_x and logical_y from the Logical_index provided
+      const PosGrid_x logical_x{ Logical_index_to_Logical_x(logical_index) };
+      const PosGrid_y logical_y{ Logical_index_to_Logical_y(logical_index) };
+
+      // now we need to convert the logical xy to physical xy then to physical index
+      const PosGrid_x physical_x{ Logical_x_to_Physical_x(logical_x) };
+      const PosGrid_y physical_y{ Logical_y_to_Physical_y(logical_y) };
+
+      const std::size_t physical_index = Physical_xy_to_index(physical_x, physical_y);
+
+      return physical_index;
+    }
+
+    inline std::size_t Physical_index_to_Logical_index(std::size_t physical_index) {
+      const PosGrid_x physical_x{ Physical_index_to_Physical_x(physical_index) };
+      const PosGrid_y physical_y{ Physical_index_to_Physical_y(physical_index) };
+
+      const PosGrid_x logical_x{ Physical_x_to_Logical_x(physical_x) };
+      const PosGrid_y logical_y{ Physical_y_to_Logical_y(physical_y) };
+
+      const std::size_t logical_index = Logical_xy_to_index_RETURN_LOGICAL(logical_x, logical_y);
+
+      return logical_index;
+    }
+
+    inline PosGrid_x Physical_index_to_Logical_x(std::size_t physical_index) {
+      const PosGrid_x physical_x{ Physical_index_to_Physical_x(physical_index) };
+      const PosGrid_x logical_x{ Physical_x_to_Logical_x(physical_x) };
+      return logical_x;
+    }
+
+    inline PosGrid_y Physical_index_to_Logical_y(std::size_t physical_index) {
+      const PosGrid_y physical_y{ Physical_index_to_Physical_y(physical_index) };
+      const PosGrid_y logical_y{ Physical_y_to_Logical_y(physical_y) };
+      return logical_y;
+    }
+
   }
 
   struct Renderables {
