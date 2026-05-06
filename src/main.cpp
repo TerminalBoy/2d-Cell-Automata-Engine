@@ -870,6 +870,11 @@ namespace cae::input {
       PosPix_x mouse_x{ static_cast<std::int32_t>(camera.getCenter().x) + relative_to_rendering_window_center_x };
       PosPix_y mouse_y{ static_cast<std::int32_t>(camera.getCenter().y) + relative_to_rendering_window_center_y };
 
+      if (
+        (mouse_x.get() < 0 || mouse_x.get() >= cae::grid_metadata::GridPixelWidth.get()) ||
+        (mouse_y.get() < 0 || mouse_y.get() >= cae::grid_metadata::GridPixelHeight.get())
+        ) return;
+
       // view cordinates // is never physical
       PosGrid_x mouse_grid_x{ cae::grid_convert::Pixel_x_to_Grid_x(mouse_x.get()) };
       PosGrid_y mouse_grid_y{ cae::grid_convert::Pixel_y_to_Grid_y(mouse_y.get()) };
