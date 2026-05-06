@@ -88,8 +88,7 @@ namespace cae { // Conways's Game of Life
 
     bool paused = false;
 
-    PosPix_x center_camera_x{};
-    PosPix_y center_camera_y{};
+    
 
     WidthPix GridPixelWidth{};
     HeightPix GridPixelHeight{};
@@ -421,13 +420,7 @@ namespace cae { // Conways's Game of Life
     cae::grid_metadata::GridPixelWidth.set(cae::grid_metadata::Logical_GridWidth.get() * cae::grid_metadata::CellWidth.get());
     cae::grid_metadata::GridPixelHeight.set(cae::grid_metadata::Logical_GridHeight.get() * cae::grid_metadata::CellHeight.get());
 
-    cae::grid_metadata::center_camera_x.set(
-      cae::grid_metadata::Logical_GridWidth.get() * cae::grid_metadata::CellWidth.get() / 2
-    );
 
-    cae::grid_metadata::center_camera_y.set(
-      cae::grid_metadata::Logical_GridHeight.get() * cae::grid_metadata::CellHeight.get() / 2
-    );
 
   }
 
@@ -1105,28 +1098,31 @@ namespace cae::gui {
 }
 
 namespace cae::gui::camera {
-  void init_view_camera(sf::RenderWindow& window, sf::View& camera) {
-    camera.setCenter(cae::grid_metadata::center_camera_x.get(), cae::grid_metadata::center_camera_y.get());
+  void init_view_camera(sf::RenderWindow& window, sf::View& camera, std::int32_t& camera_center_x, std::int32_t& camera_center_y) {
+    camera_center_x = window.getSize().x / 2;
+    camera_center_y = window.getSize().y / 2;
+
+    camera.setCenter(camera_center_x, camera_center_y);
     camera.setSize(window.getSize().x, window.getSize().y);
   }
 
   inline
-  void change_camera_center(sf::View& camera ,std::size_t x, std::size_t y) {
+  void update_camera_center(sf::View& camera ,std::int32_t x, std::int32_t y) {
     camera.setCenter(x, y);
   }
 
-  void take_input_for_camera_movement(sf::View& camera) {
+  void take_input_for_camera_movement(std::int32_t& camera_center_x, std::int32_t& camera_center_y) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-      camera.setCenter(camera.getCenter().x, camera.getCenter().y - 1);
+      --camera_center_y;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
-      camera.setCenter(camera.getCenter().x, camera.getCenter().y + 1);
+      ++camera_center_y;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
-      camera.setCenter(camera.getCenter().x - 1, camera.getCenter().y);
+      --camera_center_x;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
-      camera.setCenter(camera.getCenter().x + 1, camera.getCenter().y);
+      ++camera_center_x;
     }
   }
 
@@ -1269,6 +1265,9 @@ int main() {
 
   sf::Event event;
   sf::View camera;
+  std::int32_t camera_center_x{};
+  std::int32_t camera_center_y{};
+
   DisplayWindow.setVerticalSyncEnabled(true);
 
   
@@ -1311,7 +1310,7 @@ int main() {
   float simulation_interval = 1.f / speed;
   float dt{};
 
-  cae::gui::camera::init_view_camera(DisplayWindow, camera);
+  cae::gui::camera::init_view_camera(DisplayWindow, camera, camera_center_x, camera_center_y);
 
   while (DisplayWindow.isOpen()) {
 
@@ -1353,7 +1352,8 @@ int main() {
       }
     }
 
-    cae::gui::camera::take_input_for_camera_movement(camera);
+    cae::gui::camera::take_input_for_camera_movement(camera_center_x, camera_center_y);
+    cae::gui::camera::update_camera_center(camera, camera_center_x, camera_center_y);
 
     cae::update_entities_VertexArray_state_only(cell_index_to_entity);
     DisplayWindow.clear(sf::Color::Black);
