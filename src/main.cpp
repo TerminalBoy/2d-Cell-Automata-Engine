@@ -5,6 +5,7 @@
 //
 //
 #include <cstddef>
+#include <algorithm>
 #include <iostream>
 #include <stdio.h>
 #include <vector>
@@ -261,6 +262,35 @@ namespace cae { // Conways's Game of Life
     static inline sf::VertexArray border_vertical;
     static inline sf::VertexArray border_horizontal;
     static inline sf::Color entities_Color;
+    static inline sf::VertexArray ScrollbarX;
+    static inline sf::VertexArray ScrollbarY;
+    static inline sf::VertexArray ScrollbarXThumb;
+    static inline sf::VertexArray ScrollbarYThumb;
+
+    static void SetVertexArray_quads(sf::VertexArray& VertexArray, std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height, sf::Color color) {
+      // top left
+      VertexArray[0].position.x = x; 
+      VertexArray[0].position.y = y;
+
+      // top right
+      VertexArray[1].position.x = x + width;
+      VertexArray[1].position.y = y;
+
+      // bottom right
+      VertexArray[2].position.x = x + width;
+      VertexArray[2].position.y = y + height;
+
+      // bottom left
+      VertexArray[3].position.x = x;
+      VertexArray[3].position.y = y + height;
+
+      VertexArray[0].color = color;
+      VertexArray[1].color = color;
+      VertexArray[2].color = color;
+      VertexArray[3].color = color;
+
+    }
+
   };
   
   namespace grid_iterator::for_each {
@@ -389,9 +419,260 @@ namespace cae { // Conways's Game of Life
 
   }
   
+  namespace scrollbar {
+    using namespace component::type;
+    WidthPix GeneralScrollBarWidth{ 10 };
+
+    WidthPix ScrollBarX_Width{};
+    HeightPix ScrollBarX_Height{};
+
+    WidthPix ScrollBarXThumb_Width{};
+    HeightPix ScrollBarXThumb_Height{};
+
+    WidthPix ScrollBarY_Width{};
+    HeightPix ScrollBarY_Height{};
+
+    WidthPix ScrollBarYThumb_Width{};
+    HeightPix ScrollBarYThumb_Height{};
+
+    PosPix_x ScrollbarXThumb_pos_x{};
+    PosPix_x ScrollbarXThumb_pos_y{};
+
+    PosPix_x ScrollbarYThumb_pos_x{};
+    PosPix_x ScrollbarYThumb_pos_y{};
+
+    std::int32_t ScrollbarXThumb_drag_offset{};
+    std::int32_t ScrollbarYThumb_drag_offset{};
+
+
+    sf::Color ScrollbarXThumb_color = sf::Color::Blue;
+    sf::Color ScrollbarYThumb_color = sf::Color::Magenta;
+
+    
+    void update_ScrollbarXThumb_VertexArray() {
+      Renderables::SetVertexArray_quads(
+        Renderables::ScrollbarXThumb,
+        ScrollbarXThumb_pos_x.get(),
+        ScrollbarXThumb_pos_y.get(),
+        ScrollBarXThumb_Width.get(),
+        ScrollBarXThumb_Height.get(),
+        ScrollbarXThumb_color
+      );
+    }
+
+    void update_ScrollbarYThumb_VertexArray() {
+      Renderables::SetVertexArray_quads(
+        Renderables::ScrollbarYThumb,
+        ScrollbarYThumb_pos_x.get(),
+        ScrollbarYThumb_pos_y.get(),
+        ScrollBarYThumb_Width.get(),
+        ScrollBarYThumb_Height.get(),
+        ScrollbarYThumb_color
+      );
+    }
+
+
+    void set_ScrollbarXThumb_dimentions(sf::View& camera) {
+      
+      float camera_view_fraction_of_grid_render_width =
+        (camera.getSize().x / static_cast<float>(cae::grid_metadata::GridPixelWidth.get()));
+
+      float clamped_width = camera_view_fraction_of_grid_render_width * static_cast<float>(cae::scrollbar::ScrollBarX_Width.get());
+
+      clamped_width = std::clamp(clamped_width, 20.0f, static_cast<float>(cae::scrollbar::ScrollBarX_Width.get()));
+
+      cae::scrollbar::ScrollBarXThumb_Width.set(clamped_width);
+    }
+
+    void set_ScrollbarYThumb_dimentions(sf::View& camera) {
+
+      float camera_view_fraction_of_grid_render_height =
+        (camera.getSize().y / static_cast<float>(cae::grid_metadata::GridPixelHeight.get()));
+
+      float clamped_height = camera_view_fraction_of_grid_render_height * static_cast<float>(cae::scrollbar::ScrollBarY_Height.get());
+
+      clamped_height = std::clamp(clamped_height, 20.0f, static_cast<float>(cae::scrollbar::ScrollBarY_Height.get()));
+
+      cae::scrollbar::ScrollBarYThumb_Height.set(clamped_height);
+
+    }
+
+    void set_ScrollbarXThumb_position_from_camera(sf::RenderWindow& window, sf::View& camera) {
+      float camera_center_x_fraction_of_grid_pix_width = camera.getCenter().x / static_cast<float>(cae::grid_metadata::GridPixelWidth.get());
+      float Thumb_max_x = (cae::scrollbar::ScrollBarX_Width.get() - cae::scrollbar::ScrollBarXThumb_Width.get()) /* - thumb lowest x*/;
+      std::int32_t current_thumb_x = static_cast<std::int32_t>(camera_center_x_fraction_of_grid_pix_width * Thumb_max_x);
+
+      current_thumb_x = std::clamp(current_thumb_x, 0, static_cast<std::int32_t>(Thumb_max_x));
+
+      cae::scrollbar::ScrollbarXThumb_pos_x.set(current_thumb_x);
+      cae::scrollbar::ScrollbarXThumb_pos_y.set(static_cast<std::int32_t>(window.getSize().y) - cae::scrollbar::ScrollBarX_Height.get());
+
+      Renderables::SetVertexArray_quads(
+        Renderables::ScrollbarXThumb,
+        cae::scrollbar::ScrollbarXThumb_pos_x.get(),
+        cae::scrollbar::ScrollbarXThumb_pos_y.get(),
+        cae::scrollbar::ScrollBarXThumb_Width.get(),
+        cae::scrollbar::ScrollBarXThumb_Height.get(),
+        sf::Color::Blue
+      );
+    }
+
+    void set_ScrollbarYThumb_position_from_camera(sf::RenderWindow& window, sf::View& camera) {
+      float camera_center_y_fraction_of_grid_pix_height = camera.getCenter().y / static_cast<float>(cae::grid_metadata::GridPixelHeight.get());
+      float Thumb_max_y = (cae::scrollbar::ScrollBarY_Height.get() - cae::scrollbar::ScrollBarYThumb_Height.get()) /* - thumb lowest y*/;
+      std::int32_t current_thumb_y = static_cast<std::int32_t>(camera_center_y_fraction_of_grid_pix_height * Thumb_max_y);
+      
+      current_thumb_y = std::clamp(current_thumb_y, 0, static_cast<std::int32_t>(Thumb_max_y));
+
+      cae::scrollbar::ScrollbarYThumb_pos_x.set(static_cast<std::int32_t>(window.getSize().x) - cae::scrollbar::ScrollBarY_Width.get());
+      cae::scrollbar::ScrollbarYThumb_pos_y.set(current_thumb_y);
+
+
+      Renderables::SetVertexArray_quads(
+        Renderables::ScrollbarYThumb,
+        cae::scrollbar::ScrollbarYThumb_pos_x.get(),
+        cae::scrollbar::ScrollbarYThumb_pos_y.get(),
+        cae::scrollbar::ScrollBarYThumb_Width.get(),
+        cae::scrollbar::ScrollBarYThumb_Height.get(),
+        sf::Color::Magenta
+      );
+    }
+
+    void update_camera_form_ScrollbarXThumb_position(sf::View& camera) {
+      std::int32_t Thumb_max_x = cae::scrollbar::ScrollBarX_Width.get() - cae::scrollbar::ScrollBarXThumb_Width.get();
+      std::int32_t camera_max_x = cae::grid_metadata::GridPixelWidth.get();
+      float ScrollbarXThumb_pos_x_fraction_of_max_x = static_cast<float>(cae::scrollbar::ScrollbarXThumb_pos_x.get()) / static_cast<float>(Thumb_max_x);
+      std::int32_t current_camera_x = static_cast<std::int32_t>(ScrollbarXThumb_pos_x_fraction_of_max_x * static_cast<float>(camera_max_x));
+      camera.setCenter(current_camera_x, camera.getCenter().y);
+    }
+
+    void update_camera_form_ScrollbarYThumb_position(sf::View& camera) {
+      std::int32_t Thumb_max_y = cae::scrollbar::ScrollBarY_Height.get() - cae::scrollbar::ScrollBarYThumb_Height.get();
+      std::int32_t camera_max_y = cae::grid_metadata::GridPixelHeight.get();
+      float ScrollbarYThumb_pos_y_fraction_of_max_y = static_cast<float>(cae::scrollbar::ScrollbarYThumb_pos_y.get()) / static_cast<float>(Thumb_max_y);
+      std::int32_t current_camera_y = static_cast<std::int32_t>(ScrollbarYThumb_pos_y_fraction_of_max_y * static_cast<float>(camera_max_y));
+      camera.setCenter(camera.getCenter().x, current_camera_y);
+    }
+
+    bool is_mouse_hover_ScrollbarXThumb(std::int32_t mouse_x, std::int32_t mouse_y) {
+      if (
+        (mouse_x > cae::scrollbar::ScrollbarXThumb_pos_x.get() - 1) &&
+        (mouse_x < cae::scrollbar::ScrollbarXThumb_pos_x.get() + cae::scrollbar::ScrollBarXThumb_Width.get())
+        &&
+        (mouse_y > cae::scrollbar::ScrollbarXThumb_pos_y.get() - 1) &&
+        (mouse_y < cae::scrollbar::ScrollbarXThumb_pos_y.get() + cae::scrollbar::ScrollBarXThumb_Height.get())
+        )
+        return true;
+      return false;
+    }
+
+    bool is_mouse_hover_ScrollbarYThumb(std::int32_t mouse_x, std::int32_t mouse_y) {
+      if (
+        (mouse_x > cae::scrollbar::ScrollbarYThumb_pos_x.get() - 1) &&
+        (mouse_x < cae::scrollbar::ScrollbarYThumb_pos_x.get() + cae::scrollbar::ScrollBarYThumb_Width.get())
+        &&
+        (mouse_y > cae::scrollbar::ScrollbarYThumb_pos_y.get() - 1) &&
+        (mouse_y < cae::scrollbar::ScrollbarYThumb_pos_y.get() + cae::scrollbar::ScrollBarYThumb_Height.get())
+        )
+        return true;
+      return false;
+    }
+
+    bool is_grabbedScrollbarXThumb(sf::RenderWindow& window) {
+      sf::Mouse mouse;
+      sf::Vector2i mousepos = mouse.getPosition(window);
+      static bool held = false;
+      if (!held && sf::Mouse::isButtonPressed(sf::Mouse::Left) && is_mouse_hover_ScrollbarXThumb(mousepos.x, mousepos.y)) {
+        
+          ScrollbarXThumb_drag_offset = mousepos.x - cae::scrollbar::ScrollbarXThumb_pos_x.get();
+          held = true;
+          return true;
+   
+      }
+      else if (!sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+        held = false;
+        return false;
+      }
+      else if (held) {
+        return true;
+      }
+
+      return false;
+    }
+
+    bool is_grabbedScrollbarYThumb(sf::RenderWindow& window) {
+      sf::Mouse mouse;
+      sf::Vector2i mousepos = mouse.getPosition(window);
+      static bool held = false;
+      if (!held && sf::Mouse::isButtonPressed(sf::Mouse::Left) && is_mouse_hover_ScrollbarYThumb(mousepos.x, mousepos.y)) {
+        
+          ScrollbarYThumb_drag_offset = mousepos.y - cae::scrollbar::ScrollbarYThumb_pos_y.get();
+          held = true;
+          return true;
+        
+      }
+      else if (!sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+        held = false;
+        return false;
+      }
+      else if (held) {
+        return true;
+      }
+
+      return false;
+    }
+
+
+    void drag_ScrollbarXThumb(const sf::RenderWindow& window) {
+      sf::Mouse mouse;
+      sf::Vector2i mousepos = mouse.getPosition(window);
+
+      std::int32_t mouse_x = mousepos.x;
+      std::int32_t mouse_y = mousepos.y;
+
+      mouse_x = std::clamp(mouse_x, 0, static_cast<std::int32_t>(window.getSize().x) - 1);
+      mouse_y = std::clamp(mouse_y, 0, static_cast<std::int32_t>(window.getSize().y) - 1);
+
+      
+      std::int32_t Thumb_pos_x = mouse_x - ScrollbarXThumb_drag_offset;
+      Thumb_pos_x = std::clamp(Thumb_pos_x, 0, cae::scrollbar::ScrollBarX_Width.get() - cae::scrollbar::ScrollBarXThumb_Width.get());
+      cae::scrollbar::ScrollbarXThumb_pos_x.set(Thumb_pos_x);
+      update_ScrollbarXThumb_VertexArray();
+
+    }
+
+
+    void drag_ScrollbarYThumb(const sf::RenderWindow& window) {
+      sf::Mouse mouse;
+      sf::Vector2i mousepos = mouse.getPosition(window);
+
+      std::int32_t mouse_x = mousepos.x;
+      std::int32_t mouse_y = mousepos.y;
+
+      mouse_x = std::clamp(mouse_x, 0, static_cast<std::int32_t>(window.getSize().x) - 1);
+      mouse_y = std::clamp(mouse_y, 0, static_cast<std::int32_t>(window.getSize().y) - 1);
+
+      
+      std::int32_t Thumb_pos_y = mouse_y - ScrollbarYThumb_drag_offset;
+      Thumb_pos_y = std::clamp(Thumb_pos_y, 0, cae::scrollbar::ScrollBarY_Height.get() - cae::scrollbar::ScrollBarYThumb_Height.get());
+      cae::scrollbar::ScrollbarYThumb_pos_y.set(Thumb_pos_y);
+      update_ScrollbarYThumb_VertexArray();
+
+    }
+
+    bool is_grabbed(sf::RenderWindow& window) {
+      bool x = is_grabbedScrollbarXThumb(window);
+      bool y = is_grabbedScrollbarYThumb(window);
+      return x || y;
+    }
+
+  }
+
+
+
   // user api
   void init_grid(std::int32_t grid_width, std::int32_t grid_height, std::int32_t cell_width, std::int32_t cell_height, 
-                 std::int32_t grid_padding = 1) { // the dimentions you want
+                 std::int32_t display_window_width, std::int32_t display_window_height, std::int32_t grid_padding = 1) { // the dimentions you want
     using namespace cae::grid_metadata;
 
     padding = grid_padding;
@@ -420,7 +701,23 @@ namespace cae { // Conways's Game of Life
     cae::grid_metadata::GridPixelWidth.set(cae::grid_metadata::Logical_GridWidth.get() * cae::grid_metadata::CellWidth.get());
     cae::grid_metadata::GridPixelHeight.set(cae::grid_metadata::Logical_GridHeight.get() * cae::grid_metadata::CellHeight.get());
 
+    // 
 
+    cae::scrollbar::ScrollBarX_Height.set(cae::scrollbar::GeneralScrollBarWidth.get());
+    cae::scrollbar::ScrollBarX_Width.set(display_window_width - cae::scrollbar::GeneralScrollBarWidth.get());
+    
+    cae::scrollbar::ScrollBarXThumb_Height.set(cae::scrollbar::GeneralScrollBarWidth.get());
+    
+    //Dynamically set:
+    //cae::grid_metadata::ScrollBarXThumb_Width.set(...);
+
+    cae::scrollbar::ScrollBarY_Width.set(cae::scrollbar::GeneralScrollBarWidth.get());
+    cae::scrollbar::ScrollBarY_Height.set(display_window_height - cae::scrollbar::GeneralScrollBarWidth.get());
+
+    cae::scrollbar::ScrollBarYThumb_Width.set(cae::scrollbar::GeneralScrollBarWidth.get());
+
+    //Dynamically set:
+    //cae::grid_metadata::ScrollBarYThumb_Height.set(...);
 
   }
 
@@ -715,6 +1012,48 @@ namespace cae { // Conways's Game of Life
     update_border_VertexArray();
   }
 
+  void init_Scrollbar_VertexArray(sf::RenderWindow& window, sf::View& camera) {
+    Renderables::ScrollbarX.setPrimitiveType(sf::Quads);
+    Renderables::ScrollbarY.setPrimitiveType(sf::Quads);
+    Renderables::ScrollbarXThumb.setPrimitiveType(sf::Quads);
+    Renderables::ScrollbarYThumb.setPrimitiveType(sf::Quads);
+
+    Renderables::ScrollbarX.resize(4);
+    Renderables::ScrollbarY.resize(4);
+    Renderables::ScrollbarXThumb.resize(4);
+    Renderables::ScrollbarYThumb.resize(4);
+    
+    // ScrollbarX
+    Renderables::SetVertexArray_quads(
+      Renderables::ScrollbarX,
+      0,
+      window.getSize().y - cae::scrollbar::ScrollBarX_Height.get(),
+      cae::scrollbar::ScrollBarX_Width.get(),
+      cae::scrollbar::ScrollBarX_Height.get(),
+      sf::Color(66, 76, 85, 240)
+    );
+
+    // ScrollbarY
+    Renderables::SetVertexArray_quads(
+      Renderables::ScrollbarY,
+      window.getSize().x - cae::scrollbar::ScrollBarY_Width.get(),
+      0,
+      cae::scrollbar::ScrollBarY_Width.get(),
+      cae::scrollbar::ScrollBarY_Height.get(),
+      sf::Color(66, 76, 85, 240)
+    );
+
+    //--- Thumb dimentions
+    cae::scrollbar::set_ScrollbarXThumb_dimentions(camera);
+    cae::scrollbar::set_ScrollbarYThumb_dimentions(camera);
+
+    //--- Thumb positions
+    cae::scrollbar::set_ScrollbarXThumb_position_from_camera(window, camera);
+    cae::scrollbar::set_ScrollbarYThumb_position_from_camera(window, camera);
+
+  }
+
+  
 
   template <typename key, typename link>
   std::int32_t nth_cell_alive_neighbours(const myecs::sparse_set<key, link>& cell_index_to_entity,
@@ -916,7 +1255,7 @@ namespace cae::input {
 
 
 namespace cae::gui {
-
+  
   template <typename Callable>
   void repeat(std::size_t n_times, Callable&& lambda_no_ARGS) {
     for (std::size_t i{}; i < n_times; ++i) {
@@ -1098,31 +1437,28 @@ namespace cae::gui {
 }
 
 namespace cae::gui::camera {
-  void init_view_camera(sf::RenderWindow& window, sf::View& camera, std::int32_t& camera_center_x, std::int32_t& camera_center_y) {
-    camera_center_x = window.getSize().x / 2;
-    camera_center_y = window.getSize().y / 2;
+  void init_view_camera(sf::RenderWindow& window, sf::View& camera) {
+    std::int32_t camera_center_x = cae::grid_metadata::GridPixelWidth.get() / 2;
+    std::int32_t camera_center_y = cae::grid_metadata::GridPixelHeight.get() / 2;
 
     camera.setCenter(camera_center_x, camera_center_y);
     camera.setSize(window.getSize().x, window.getSize().y);
   }
 
-  inline
-  void update_camera_center(sf::View& camera ,std::int32_t x, std::int32_t y) {
-    camera.setCenter(x, y);
-  }
+  
 
-  void take_input_for_camera_movement(std::int32_t& camera_center_x, std::int32_t& camera_center_y) {
+  void take_input_for_camera_movement(sf::View& camera) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-      --camera_center_y;
+      camera.setCenter(camera.getCenter().x, camera.getCenter().y - 1.0f);
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
-      ++camera_center_y;
+      camera.setCenter(camera.getCenter().x, camera.getCenter().y + 1.0f);
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
-      --camera_center_x;
+      camera.setCenter(camera.getCenter().x - 1.0f, camera.getCenter().y);
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
-      ++camera_center_x;
+      camera.setCenter(camera.getCenter().x + 1.0f, camera.getCenter().y);
     }
   }
 
@@ -1244,15 +1580,19 @@ int main() {
 
   std::cout << "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase\n";
 
+  const component::type::WidthPix DisplayWindow_Width{ 1000 };
+  const component::type::HeightPix DisplayWindow_Height{ 800 };
+
+
   cae::init_grid(
     input_grid_width,
     input_grid_height,
     input_cell_width,
-    input_cell_height
+    input_cell_height,
+    DisplayWindow_Width.get(), DisplayWindow_Height.get()
   );
 
-  const component::type::WidthPix DisplayWindow_Width{ cae::grid_metadata::CellWidth.get() * cae::grid_metadata::Logical_GridWidth.get()};
-  const component::type::HeightPix DisplayWindow_Height{ cae::grid_metadata::CellHeight.get() * cae::grid_metadata::Logical_GridHeight.get() };
+  
 
   sf::RenderWindow DisplayWindow(
     
@@ -1265,8 +1605,8 @@ int main() {
 
   sf::Event event;
   sf::View camera;
-  std::int32_t camera_center_x{};
-  std::int32_t camera_center_y{};
+  
+  cae::gui::camera::init_view_camera(DisplayWindow, camera);
 
   DisplayWindow.setVerticalSyncEnabled(true);
 
@@ -1290,7 +1630,7 @@ int main() {
   cae::init_entities_VertexArray(cell_index_to_entity);
 
   cae::init_border_VertexArray();
-  
+  cae::init_Scrollbar_VertexArray(DisplayWindow, camera);
   //cae::calculate_alive_neighbours(cell_index_to_entity);
   //cae::print_everycell_neighbour_count(cell_index_to_entity);
 
@@ -1310,7 +1650,7 @@ int main() {
   float simulation_interval = 1.f / speed;
   float dt{};
 
-  cae::gui::camera::init_view_camera(DisplayWindow, camera, camera_center_x, camera_center_y);
+ 
 
   while (DisplayWindow.isOpen()) {
 
@@ -1327,10 +1667,18 @@ int main() {
     ImGui_SFML::ImGuiInitNewFrame();
     cae::gui::ui(speed);
 
-    if (cae::input::is_drawing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse) {
+    // query
+    bool is_ScrollbarXThumb_grabbed = cae::scrollbar::is_grabbedScrollbarXThumb(DisplayWindow);
+    bool is_ScrollbarYThumb_grabbed = cae::scrollbar::is_grabbedScrollbarYThumb(DisplayWindow);
+    bool is_scrollbar_grabbed = is_ScrollbarXThumb_grabbed || is_ScrollbarYThumb_grabbed;
+
+    // ---
+    if (cae::input::is_drawing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse && !is_scrollbar_grabbed) {
+      std::cout << "Taking input (is_drawing) \n";
       cae::input::draw(DisplayWindow, camera, cell_index_to_entity);
     }
-    else if (cae::input::is_erasing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse) {
+    else if (cae::input::is_erasing() && DisplayWindow.hasFocus() && !io.WantCaptureMouse && !is_scrollbar_grabbed) {
+      std::cout << "Taking input (is_erasing)\n";
       cae::input::erase(DisplayWindow, camera, cell_index_to_entity);
     }
     else if (!cae::input::is_paused()){
@@ -1352,8 +1700,30 @@ int main() {
       }
     }
 
-    cae::gui::camera::take_input_for_camera_movement(camera_center_x, camera_center_y);
-    cae::gui::camera::update_camera_center(camera, camera_center_x, camera_center_y);
+    //std::cout << "is grabbed : " << cae::scrollbar::is_grabbed(DisplayWindow) << std::endl;
+    
+    if (is_ScrollbarXThumb_grabbed) {
+      cae::scrollbar::drag_ScrollbarXThumb(DisplayWindow);
+      cae::scrollbar::update_camera_form_ScrollbarXThumb_position(camera);
+    }
+    else {
+      cae::scrollbar::set_ScrollbarXThumb_position_from_camera(DisplayWindow, camera);
+    }
+
+    if (is_ScrollbarYThumb_grabbed) {
+      cae::scrollbar::drag_ScrollbarYThumb(DisplayWindow);
+      cae::scrollbar::update_camera_form_ScrollbarYThumb_position(camera);
+
+    }
+    else {
+      cae::scrollbar::set_ScrollbarYThumb_position_from_camera(DisplayWindow, camera);
+    }
+    
+    cae::gui::camera::take_input_for_camera_movement(camera);
+
+    cae::scrollbar::set_ScrollbarYThumb_position_from_camera(DisplayWindow, camera);
+    cae::scrollbar::set_ScrollbarXThumb_position_from_camera(DisplayWindow, camera);
+
 
     cae::update_entities_VertexArray_state_only(cell_index_to_entity);
     DisplayWindow.clear(sf::Color::Black);
@@ -1361,6 +1731,14 @@ int main() {
     DisplayWindow.draw(cae::Renderables::entities_VertexArray);
     DisplayWindow.draw(cae::Renderables::border_horizontal);
     DisplayWindow.draw(cae::Renderables::border_vertical);
+
+    DisplayWindow.setView(DisplayWindow.getDefaultView());
+    DisplayWindow.draw(cae::Renderables::ScrollbarX);
+    DisplayWindow.draw(cae::Renderables::ScrollbarY);
+
+    DisplayWindow.draw(cae::Renderables::ScrollbarXThumb);
+    DisplayWindow.draw(cae::Renderables::ScrollbarYThumb);
+
     
     DisplayWindow.resetGLStates();
     ImGui_SFML::RenderUi();
