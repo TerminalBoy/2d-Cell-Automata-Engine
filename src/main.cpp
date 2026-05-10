@@ -445,8 +445,11 @@ namespace cae { // Conways's Game of Life
     std::int32_t ScrollbarYThumb_drag_offset{};
 
 
-    sf::Color ScrollbarXThumb_color = sf::Color::Blue;
-    sf::Color ScrollbarYThumb_color = sf::Color::Magenta;
+    sf::Color ScrollbarXThumb_color = sf::Color(230, 230, 223);
+    sf::Color ScrollbarYThumb_color = sf::Color(230, 230, 223);
+
+    bool ScrollbarX_enabled = true;
+    bool ScrollbarY_enabled = true;
 
     
     void update_ScrollbarXThumb_VertexArray() {
@@ -471,6 +474,14 @@ namespace cae { // Conways's Game of Life
       );
     }
 
+    void set_Scrollbar_status(sf::RenderWindow& window) {
+      if (window.getSize().x >= static_cast<unsigned int>(cae::grid_metadata::GridPixelWidth.get()))
+        ScrollbarX_enabled = false;
+
+      if (window.getSize().y >= static_cast<unsigned int>(cae::grid_metadata::GridPixelHeight.get()))
+        ScrollbarY_enabled = false;
+
+    }
 
     void set_ScrollbarXThumb_dimentions(sf::View& camera) {
       
@@ -513,7 +524,7 @@ namespace cae { // Conways's Game of Life
         cae::scrollbar::ScrollbarXThumb_pos_y.get(),
         cae::scrollbar::ScrollBarXThumb_Width.get(),
         cae::scrollbar::ScrollBarXThumb_Height.get(),
-        sf::Color::Blue
+        cae::scrollbar::ScrollbarXThumb_color
       );
     }
 
@@ -534,7 +545,7 @@ namespace cae { // Conways's Game of Life
         cae::scrollbar::ScrollbarYThumb_pos_y.get(),
         cae::scrollbar::ScrollBarYThumb_Width.get(),
         cae::scrollbar::ScrollBarYThumb_Height.get(),
-        sf::Color::Magenta
+        cae::scrollbar::ScrollbarYThumb_color
       );
     }
 
@@ -1023,6 +1034,8 @@ namespace cae { // Conways's Game of Life
     Renderables::ScrollbarXThumb.resize(4);
     Renderables::ScrollbarYThumb.resize(4);
     
+    cae::scrollbar::set_Scrollbar_status(window);
+
     // ScrollbarX
     Renderables::SetVertexArray_quads(
       Renderables::ScrollbarX,
@@ -1351,9 +1364,9 @@ namespace cae::gui {
     const std::uint32_t window_height{ 400 };
 
     sf::RenderWindow Initialization_Window(
-      sf::VideoMode(window_width, window_height), 
-      "Choose Grid Dimentions", 
-      sf::Style::Default,
+      sf::VideoMode(window_width, window_height),
+      "Choose Grid Dimentions",
+      sf::Style::Titlebar | sf::Style::Close,
       ImGui_SFML::SFML_StandardContext()
     );
 
@@ -1595,10 +1608,10 @@ int main() {
   
 
   sf::RenderWindow DisplayWindow(
-    
+
     sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()),
     "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase",
-    sf::Style::Default,
+    sf::Style::Titlebar | sf::Style::Close,
     ImGui_SFML::SFML_StandardContext()
   
   );
@@ -1668,8 +1681,8 @@ int main() {
     cae::gui::ui(speed);
 
     // query
-    bool is_ScrollbarXThumb_grabbed = cae::scrollbar::is_grabbedScrollbarXThumb(DisplayWindow);
-    bool is_ScrollbarYThumb_grabbed = cae::scrollbar::is_grabbedScrollbarYThumb(DisplayWindow);
+    bool is_ScrollbarXThumb_grabbed = cae::scrollbar::ScrollbarX_enabled && cae::scrollbar::is_grabbedScrollbarXThumb(DisplayWindow);
+    bool is_ScrollbarYThumb_grabbed = cae::scrollbar::ScrollbarY_enabled && cae::scrollbar::is_grabbedScrollbarYThumb(DisplayWindow);
     bool is_scrollbar_grabbed = is_ScrollbarXThumb_grabbed || is_ScrollbarYThumb_grabbed;
 
     // ---
@@ -1733,13 +1746,17 @@ int main() {
     DisplayWindow.draw(cae::Renderables::border_vertical);
 
     DisplayWindow.setView(DisplayWindow.getDefaultView());
-    DisplayWindow.draw(cae::Renderables::ScrollbarX);
-    DisplayWindow.draw(cae::Renderables::ScrollbarY);
-
-    DisplayWindow.draw(cae::Renderables::ScrollbarXThumb);
-    DisplayWindow.draw(cae::Renderables::ScrollbarYThumb);
-
     
+    if (cae::scrollbar::ScrollbarX_enabled) {
+      DisplayWindow.draw(cae::Renderables::ScrollbarX);
+      DisplayWindow.draw(cae::Renderables::ScrollbarXThumb);
+    }
+
+    if (cae::scrollbar::ScrollbarY_enabled) {
+      DisplayWindow.draw(cae::Renderables::ScrollbarY);
+      DisplayWindow.draw(cae::Renderables::ScrollbarYThumb);
+    }
+
     DisplayWindow.resetGLStates();
     ImGui_SFML::RenderUi();
 
