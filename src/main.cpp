@@ -591,7 +591,7 @@ namespace cae { // Conways's Game of Life
 
     bool is_grabbedScrollbarXThumb(sf::RenderWindow& window, sf::Event& event) {
       static bool held = false;
-      if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left && is_mouse_hover_ScrollbarXThumb(event.mouseButton.x, event.mouseButton.y)) {
+      if (!held && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left && is_mouse_hover_ScrollbarXThumb(event.mouseButton.x, event.mouseButton.y)) {
 
         ScrollbarXThumb_drag_offset = event.mouseButton.x - cae::scrollbar::ScrollbarXThumb_pos_x.get();
         held = true;
@@ -611,7 +611,7 @@ namespace cae { // Conways's Game of Life
 
     bool is_grabbedScrollbarYThumb(sf::RenderWindow& window, sf::Event& event) {
       static bool held = false;
-      if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left && is_mouse_hover_ScrollbarYThumb(event.mouseButton.x, event.mouseButton.y)) {
+      if (!held && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left && is_mouse_hover_ScrollbarYThumb(event.mouseButton.x, event.mouseButton.y)) {
 
         ScrollbarYThumb_drag_offset = event.mouseButton.y - cae::scrollbar::ScrollbarYThumb_pos_y.get();
         held = true;
