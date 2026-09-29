@@ -24,3 +24,4 @@
 # !/Custom_Preprocessors/struct_parser/VS struct_parser/**/*.vcxproj.filters 
 
 SFML/
+/build/**

@@ -17,8 +17,8 @@
 #include "../dependencies/RNG/include/random.hpp" // seed based random number generator - xorshift32
 
 // Graphics includes
-#include "../dependencies/SFML/include/SFML/Graphics.hpp"
-#include "../dependencies/SFML/include/SFML/OpenGL.hpp"
+#include "SFML/Graphics.hpp"
+#include "SFML/OpenGL.hpp"
 #include "../dependencies/ImGui/include/imgui.h"
 #include "../dependencies/ImGui/include/backends/imgui_impl_opengl3.h"
 #include "../dependencies/ImGui_SFML_Custom_Bridge/include/ImGui_SFML_Custom_Bridge.hpp" // <-- Custom SFML -> ImGui Bridge
@@ -1600,12 +1600,22 @@ int main() {
   
 
   sf::RenderWindow DisplayWindow(
+    #ifndef NDEBUG
 
     sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()),
-    "Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase",
+    "[DEBUG] Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase",
     sf::Style::Titlebar | sf::Style::Close,
     ImGui_SFML::SFML_StandardContext()
-  
+    
+    #else
+
+    sf::VideoMode(DisplayWindow_Width.get(), DisplayWindow_Height.get()),
+    "[RELEASE] Cellular Automata Engine (Running: Comway's Game of Life) | Hold LCtrl to pause | Left click to draw, Right click to erase",
+    sf::Style::Titlebar | sf::Style::Close,
+    ImGui_SFML::SFML_StandardContext()
+    
+
+    #endif
   );
 
   sf::Event event;

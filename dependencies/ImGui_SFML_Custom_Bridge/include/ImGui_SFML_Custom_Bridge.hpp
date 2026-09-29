@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../SFML/include/SFML/Graphics.hpp"
-#include "../../SFML/include/SFML/OpenGL.hpp"
+#include "SFML/Graphics.hpp"
+#include "SFML/OpenGL.hpp"
 
 #include "../../ImGui/include/imgui.h"
 #include "../../ImGui/include/backends/imgui_impl_opengl3.h"
